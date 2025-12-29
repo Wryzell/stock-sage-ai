@@ -5,19 +5,21 @@ import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { UserRole } from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { AppRole } from '@/contexts/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('staff');
-  const { login, isLoading } = useAuth();
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<AppRole>('staff');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const { login, signup, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
@@ -25,13 +27,40 @@ export default function Login() {
       return;
     }
 
-    const success = await login(email, password, role);
+    const result = await login(email, password);
     
-    if (success) {
+    if (result.success) {
       toast.success('Login successful');
       navigate('/dashboard');
     } else {
-      toast.error('Invalid credentials. Please try again.');
+      toast.error(result.error || 'Invalid credentials. Please try again.');
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password || !fullName) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    const result = await signup(email, password, fullName, role);
+    
+    if (result.success) {
+      if (result.error) {
+        toast.info(result.error);
+      } else {
+        toast.success('Account created successfully');
+        navigate('/dashboard');
+      }
+    } else {
+      toast.error(result.error || 'Failed to create account');
     }
   };
 
@@ -43,83 +72,131 @@ export default function Login() {
             <Logo size="lg" showTagline />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-field"
-                disabled={isLoading}
-              />
-            </div>
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="login" onClick={() => setIsSignUp(false)}>Sign In</TabsTrigger>
+              <TabsTrigger value="signup" onClick={() => setIsSignUp(true)}>Sign Up</TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-field"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <Label>Login As</Label>
-              <RadioGroup
-                value={role}
-                onValueChange={(value) => setRole(value as UserRole)}
-                className="flex gap-4"
-                disabled={isLoading}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="super_admin" id="super_admin" />
-                  <Label htmlFor="super_admin" className="font-normal cursor-pointer">
-                    Super Admin
-                  </Label>
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">Email Address</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-field"
+                    disabled={isLoading}
+                  />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="staff" id="staff" />
-                  <Label htmlFor="staff" className="font-normal cursor-pointer">
-                    Staff
-                  </Label>
+
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Password</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-field"
+                    disabled={isLoading}
+                  />
                 </div>
-              </RadioGroup>
-            </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
 
-          <div className="mt-8 pt-6 border-t border-border">
-            <p className="text-sm text-muted-foreground text-center mb-4">Demo Credentials</p>
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="p-3 rounded-md bg-muted">
-                <p className="font-medium text-heading">Super Admin</p>
-                <p className="text-muted-foreground mt-1">admin@demo.com</p>
-                <p className="text-muted-foreground">demo123</p>
-              </div>
-              <div className="p-3 rounded-md bg-muted">
-                <p className="font-medium text-heading">Staff</p>
-                <p className="text-muted-foreground mt-1">staff@demo.com</p>
-                <p className="text-muted-foreground">staff123</p>
-              </div>
-            </div>
-          </div>
+            <TabsContent value="signup">
+              <form onSubmit={handleSignUp} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">Full Name</Label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="input-field"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email Address</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-field"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="Create a password (min 6 characters)"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-field"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Account Type</Label>
+                  <div className="flex gap-4">
+                    <Button
+                      type="button"
+                      variant={role === 'staff' ? 'default' : 'outline'}
+                      className="flex-1"
+                      onClick={() => setRole('staff')}
+                      disabled={isLoading}
+                    >
+                      Staff
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={role === 'super_admin' ? 'default' : 'outline'}
+                      className="flex-1"
+                      onClick={() => setRole('super_admin')}
+                      disabled={isLoading}
+                    >
+                      Super Admin
+                    </Button>
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    'Create Account'
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
