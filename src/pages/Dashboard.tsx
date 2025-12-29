@@ -70,7 +70,7 @@ export default function Dashboard() {
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <AlertsTable alerts={mockAlerts.slice(0, 4)} showActions />
+              <AlertsTable alerts={mockAlerts.slice(0, 4)} />
             </div>
             <div>
               <ForecastCard highlights={forecastHighlights} />
@@ -180,7 +180,7 @@ export default function Dashboard() {
               </ul>
             </div>
 
-            <AlertsTable alerts={mockAlerts.slice(0, 3)} showActions={false} />
+            <AlertsTable alerts={mockAlerts.slice(0, 3)} />
           </div>
         </div>
       </div>

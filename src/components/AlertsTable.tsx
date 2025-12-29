@@ -1,13 +1,11 @@
 import { Alert } from '@/types';
-import { Button } from '@/components/ui/button';
 import { AlertTriangle, Info, AlertCircle } from 'lucide-react';
 
 interface AlertsTableProps {
   alerts: Alert[];
-  showActions?: boolean;
 }
 
-export function AlertsTable({ alerts, showActions = true }: AlertsTableProps) {
+export function AlertsTable({ alerts }: AlertsTableProps) {
   const getSeverityIcon = (severity: Alert['severity']) => {
     switch (severity) {
       case 'critical':
@@ -39,7 +37,6 @@ export function AlertsTable({ alerts, showActions = true }: AlertsTableProps) {
               <th>Product</th>
               <th>Message</th>
               <th>Time</th>
-              {showActions && <th>Action</th>}
             </tr>
           </thead>
           <tbody>
@@ -58,15 +55,6 @@ export function AlertsTable({ alerts, showActions = true }: AlertsTableProps) {
                 <td className="text-muted-foreground">
                   {new Date(alert.createdAt).toLocaleTimeString()}
                 </td>
-                {showActions && (
-                  <td>
-                    {(alert.severity === 'critical' || alert.severity === 'warning') && (
-                      <Button size="sm" className="text-xs">
-                        Order Now
-                      </Button>
-                    )}
-                  </td>
-                )}
               </tr>
             ))}
           </tbody>
