@@ -1,30 +1,88 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { ProductsTable } from '@/components/ProductsTable';
-import { mockProducts } from '@/data/mockData';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Upload, Search, Filter } from 'lucide-react';
+import { Plus, Upload, Search, Filter, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Products() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
   
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'add'>('view');
+  
+  // Form state for add/edit
+  const [formData, setFormData] = useState({
+    sku: '',
+    name: '',
+    description: '',
+    category: '',
+    currentStock: 0,
+    minStock: 0,
+    costPrice: 0,
+    sellingPrice: 0,
+    leadTimeDays: 7,
+  });
 
   const categories = [...new Set(products.map(p => p.category))];
+
+  // Fetch products from Supabase
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      const mappedProducts: Product[] = (data || []).map(p => ({
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        description: p.description || '',
+        category: p.category,
+        currentStock: p.current_stock,
+        minStock: p.min_stock,
+        reorderPoint: p.min_stock, // Use min_stock as reorder point
+        costPrice: Number(p.cost_price),
+        sellingPrice: Number(p.selling_price),
+        leadTimeDays: p.lead_time_days,
+        supplierId: p.supplier_id || '',
+        status: p.current_stock <= 0 ? 'out_of_stock' : 
+                p.current_stock <= p.min_stock ? 'low_stock' : 'in_stock',
+        createdAt: p.created_at,
+        createdBy: p.created_by || '',
+      }));
+
+      setProducts(mappedProducts);
+    } catch (error: any) {
+      console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -42,14 +100,37 @@ export default function Products() {
 
   const handleEdit = (product: Product) => {
     setSelectedProduct(product);
+    setFormData({
+      sku: product.sku,
+      name: product.name,
+      description: product.description || '',
+      category: product.category,
+      currentStock: product.currentStock,
+      minStock: product.minStock,
+      costPrice: product.costPrice,
+      sellingPrice: product.sellingPrice,
+      leadTimeDays: product.leadTimeDays,
+    });
     setDialogMode('edit');
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (product: Product) => {
+  const handleDelete = async (product: Product) => {
     if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
-      setProducts(products.filter(p => p.id !== product.id));
-      toast.success('Product deleted successfully');
+      try {
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .eq('id', product.id);
+
+        if (error) throw error;
+
+        setProducts(products.filter(p => p.id !== product.id));
+        toast.success('Product deleted successfully');
+      } catch (error: any) {
+        console.error('Error deleting product:', error);
+        toast.error('Failed to delete product');
+      }
     }
   };
 
@@ -59,8 +140,78 @@ export default function Products() {
 
   const handleAddNew = () => {
     setSelectedProduct(null);
+    setFormData({
+      sku: '',
+      name: '',
+      description: '',
+      category: categories[0] || 'General',
+      currentStock: 0,
+      minStock: 10,
+      costPrice: 0,
+      sellingPrice: 0,
+      leadTimeDays: 7,
+    });
     setDialogMode('add');
     setIsDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.sku || !formData.name || !formData.category) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (dialogMode === 'add') {
+        const { data, error } = await supabase
+          .from('products')
+          .insert({
+            sku: formData.sku,
+            name: formData.name,
+            description: formData.description,
+            category: formData.category,
+            current_stock: formData.currentStock,
+            min_stock: formData.minStock,
+            cost_price: formData.costPrice,
+            selling_price: formData.sellingPrice,
+            lead_time_days: formData.leadTimeDays,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        toast.success('Product added successfully');
+      } else if (dialogMode === 'edit' && selectedProduct) {
+        const { error } = await supabase
+          .from('products')
+          .update({
+            sku: formData.sku,
+            name: formData.name,
+            description: formData.description,
+            category: formData.category,
+            current_stock: formData.currentStock,
+            min_stock: formData.minStock,
+            cost_price: formData.costPrice,
+            selling_price: formData.sellingPrice,
+            lead_time_days: formData.leadTimeDays,
+          })
+          .eq('id', selectedProduct.id);
+
+        if (error) throw error;
+
+        toast.success('Product updated successfully');
+      }
+
+      setIsDialogOpen(false);
+      fetchProducts(); // Refresh the list
+    } catch (error: any) {
+      console.error('Error saving product:', error);
+      toast.error(error.message || 'Failed to save product');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -70,6 +221,16 @@ export default function Products() {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -217,41 +378,91 @@ export default function Products() {
             {(dialogMode === 'edit' || dialogMode === 'add') && isSuperAdmin && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="sku">SKU</Label>
-                  <Input id="sku" defaultValue={selectedProduct?.sku || ''} className="mt-1" />
+                  <Label htmlFor="sku">SKU *</Label>
+                  <Input 
+                    id="sku" 
+                    value={formData.sku}
+                    onChange={(e) => setFormData({...formData, sku: e.target.value})}
+                    className="mt-1" 
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Select defaultValue={selectedProduct?.category || ''}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="category">Category *</Label>
+                  <Input 
+                    id="category" 
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    placeholder="e.g., Electronics, Beverages"
+                    className="mt-1" 
+                  />
                 </div>
                 <div className="col-span-2">
-                  <Label htmlFor="name">Product Name</Label>
-                  <Input id="name" defaultValue={selectedProduct?.name || ''} className="mt-1" />
+                  <Label htmlFor="name">Product Name *</Label>
+                  <Input 
+                    id="name" 
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="mt-1" 
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input 
+                    id="description" 
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    className="mt-1" 
+                  />
                 </div>
                 <div>
                   <Label htmlFor="currentStock">Current Stock</Label>
-                  <Input id="currentStock" type="number" defaultValue={selectedProduct?.currentStock || 0} className="mt-1" />
+                  <Input 
+                    id="currentStock" 
+                    type="number" 
+                    value={formData.currentStock}
+                    onChange={(e) => setFormData({...formData, currentStock: parseInt(e.target.value) || 0})}
+                    className="mt-1" 
+                  />
                 </div>
                 <div>
                   <Label htmlFor="minStock">Minimum Stock</Label>
-                  <Input id="minStock" type="number" defaultValue={selectedProduct?.minStock || 0} className="mt-1" />
+                  <Input 
+                    id="minStock" 
+                    type="number" 
+                    value={formData.minStock}
+                    onChange={(e) => setFormData({...formData, minStock: parseInt(e.target.value) || 0})}
+                    className="mt-1" 
+                  />
                 </div>
                 <div>
                   <Label htmlFor="costPrice">Cost Price (₱)</Label>
-                  <Input id="costPrice" type="number" defaultValue={selectedProduct?.costPrice || 0} className="mt-1" />
+                  <Input 
+                    id="costPrice" 
+                    type="number" 
+                    value={formData.costPrice}
+                    onChange={(e) => setFormData({...formData, costPrice: parseFloat(e.target.value) || 0})}
+                    className="mt-1" 
+                  />
                 </div>
                 <div>
                   <Label htmlFor="sellingPrice">Selling Price (₱)</Label>
-                  <Input id="sellingPrice" type="number" defaultValue={selectedProduct?.sellingPrice || 0} className="mt-1" />
+                  <Input 
+                    id="sellingPrice" 
+                    type="number" 
+                    value={formData.sellingPrice}
+                    onChange={(e) => setFormData({...formData, sellingPrice: parseFloat(e.target.value) || 0})}
+                    className="mt-1" 
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="leadTime">Lead Time (days)</Label>
+                  <Input 
+                    id="leadTime" 
+                    type="number" 
+                    value={formData.leadTimeDays}
+                    onChange={(e) => setFormData({...formData, leadTimeDays: parseInt(e.target.value) || 7})}
+                    className="mt-1" 
+                  />
                 </div>
               </div>
             )}
@@ -261,10 +472,8 @@ export default function Products() {
                 {dialogMode === 'view' ? 'Close' : 'Cancel'}
               </Button>
               {(dialogMode === 'edit' || dialogMode === 'add') && isSuperAdmin && (
-                <Button onClick={() => {
-                  toast.success(dialogMode === 'add' ? 'Product added successfully' : 'Product updated successfully');
-                  setIsDialogOpen(false);
-                }}>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {dialogMode === 'add' ? 'Add Product' : 'Save Changes'}
                 </Button>
               )}
