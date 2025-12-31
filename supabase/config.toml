@@ -21,4 +21,4 @@ enabled = true
 site_url = "http://localhost:3000"
 
 [functions.ai-forecast]
-verify_jwt = true
+verify_jwt = false

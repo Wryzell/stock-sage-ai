@@ -69,7 +69,6 @@ serve(async (req) => {
       category: p.category,
       currentStock: p.current_stock,
       minStock: p.min_stock,
-      leadTimeDays: p.lead_time_days,
     })) || [];
 
     const systemPrompt = `You are an AI inventory demand forecasting specialist. Analyze the provided sales data and inventory levels to generate accurate demand predictions.
