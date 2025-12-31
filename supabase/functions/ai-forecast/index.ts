@@ -7,15 +7,19 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('AI Forecast function started');
+    
     const { productId, algorithm = 'exponential_smoothing', forecastDays = 30 } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
@@ -23,6 +27,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    console.log('Fetching sales data...');
 
     // Fetch sales data for analysis
     let salesQuery = supabase
@@ -42,6 +48,8 @@ serve(async (req) => {
       throw new Error('Failed to fetch sales data');
     }
 
+    console.log(`Fetched ${salesData?.length || 0} sales records`);
+
     // Fetch products for stock analysis
     const { data: products, error: productsError } = await supabase
       .from('products')
@@ -52,6 +60,8 @@ serve(async (req) => {
       console.error('Error fetching products:', productsError);
       throw new Error('Failed to fetch products data');
     }
+
+    console.log(`Fetched ${products?.length || 0} products`);
 
     // Prepare context for AI
     const salesSummary = salesData?.map(s => ({
@@ -115,7 +125,7 @@ ${JSON.stringify(productSummary, null, 2)}
 
 Generate forecasts for the next ${forecastDays} days.`;
 
-    console.log('Calling AI for forecast analysis...');
+    console.log('Calling Lovable AI gateway...');
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -129,7 +139,6 @@ Generate forecasts for the next ${forecastDays} days.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.3,
       }),
     });
 
@@ -150,13 +159,13 @@ Generate forecasts for the next ${forecastDays} days.`;
         });
       }
       
-      throw new Error('AI service error');
+      throw new Error(`AI service error: ${response.status}`);
     }
 
     const aiResponse = await response.json();
     const content = aiResponse.choices?.[0]?.message?.content;
 
-    console.log('AI response received:', content?.substring(0, 200));
+    console.log('AI response received, length:', content?.length);
 
     // Parse the AI response
     let forecastData;
@@ -167,9 +176,10 @@ Generate forecasts for the next ${forecastDays} days.`;
                        [null, content];
       const jsonStr = jsonMatch[1] || content;
       forecastData = JSON.parse(jsonStr.trim());
+      console.log('Successfully parsed forecast data');
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      console.error('Raw content:', content);
+      console.error('Raw content:', content?.substring(0, 500));
       
       // Return a fallback response
       forecastData = {
