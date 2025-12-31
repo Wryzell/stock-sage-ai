@@ -26,17 +26,19 @@ export default function Products() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'add'>('view');
   
+  // Predefined categories
+  const predefinedCategories = ['Electronics', 'Beverages', 'Food', 'Clothing', 'Office Supplies', 'Hardware', 'General'];
+
   // Form state for add/edit
   const [formData, setFormData] = useState({
     sku: '',
     name: '',
     description: '',
-    category: '',
+    category: 'General',
     currentStock: 0,
     minStock: 0,
     costPrice: 0,
     sellingPrice: 0,
-    leadTimeDays: 7,
   });
 
   const categories = [...new Set(products.map(p => p.category))];
@@ -64,10 +66,10 @@ export default function Products() {
         category: p.category,
         currentStock: p.current_stock,
         minStock: p.min_stock,
-        reorderPoint: p.min_stock, // Use min_stock as reorder point
+        reorderPoint: p.min_stock,
         costPrice: Number(p.cost_price),
         sellingPrice: Number(p.selling_price),
-        leadTimeDays: p.lead_time_days,
+        leadTimeDays: 0,
         supplierId: p.supplier_id || '',
         status: p.current_stock <= 0 ? 'out_of_stock' : 
                 p.current_stock <= p.min_stock ? 'low_stock' : 'in_stock',
@@ -109,7 +111,6 @@ export default function Products() {
       minStock: product.minStock,
       costPrice: product.costPrice,
       sellingPrice: product.sellingPrice,
-      leadTimeDays: product.leadTimeDays,
     });
     setDialogMode('edit');
     setIsDialogOpen(true);
@@ -144,12 +145,11 @@ export default function Products() {
       sku: '',
       name: '',
       description: '',
-      category: categories[0] || 'General',
+      category: 'General',
       currentStock: 0,
       minStock: 10,
       costPrice: 0,
       sellingPrice: 0,
-      leadTimeDays: 7,
     });
     setDialogMode('add');
     setIsDialogOpen(true);
@@ -175,7 +175,6 @@ export default function Products() {
             min_stock: formData.minStock,
             cost_price: formData.costPrice,
             selling_price: formData.sellingPrice,
-            lead_time_days: formData.leadTimeDays,
           })
           .select()
           .single();
@@ -195,7 +194,6 @@ export default function Products() {
             min_stock: formData.minStock,
             cost_price: formData.costPrice,
             selling_price: formData.sellingPrice,
-            lead_time_days: formData.leadTimeDays,
           })
           .eq('id', selectedProduct.id);
 
@@ -357,10 +355,6 @@ export default function Products() {
                   <p className="mt-1 font-semibold">{formatCurrency(selectedProduct.sellingPrice)}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Lead Time</Label>
-                  <p className="mt-1">{selectedProduct.leadTimeDays} days</p>
-                </div>
-                <div>
                   <Label className="text-muted-foreground">Status</Label>
                   <p className="mt-1">
                     <span className={`status-badge ${
@@ -388,13 +382,16 @@ export default function Products() {
                 </div>
                 <div>
                   <Label htmlFor="category">Category *</Label>
-                  <Input 
-                    id="category" 
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    placeholder="e.g., Electronics, Beverages"
-                    className="mt-1" 
-                  />
+                  <Select value={formData.category} onValueChange={(val) => setFormData({...formData, category: val})}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {predefinedCategories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="name">Product Name *</Label>
@@ -451,16 +448,6 @@ export default function Products() {
                     type="number" 
                     value={formData.sellingPrice}
                     onChange={(e) => setFormData({...formData, sellingPrice: parseFloat(e.target.value) || 0})}
-                    className="mt-1" 
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="leadTime">Lead Time (days)</Label>
-                  <Input 
-                    id="leadTime" 
-                    type="number" 
-                    value={formData.leadTimeDays}
-                    onChange={(e) => setFormData({...formData, leadTimeDays: parseInt(e.target.value) || 7})}
                     className="mt-1" 
                   />
                 </div>
