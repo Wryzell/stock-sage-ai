@@ -37,7 +37,7 @@ export default function Forecast() {
   const isSuperAdmin = user?.role === 'super_admin';
   
   const [dateRange, setDateRange] = useState('30');
-  const [algorithm, setAlgorithm] = useState('exponential_smoothing');
+  const algorithm = 'exponential_smoothing';
   const [confidence, setConfidence] = useState([80]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
@@ -152,17 +152,9 @@ export default function Forecast() {
 
               <div className="space-y-2">
                 <Label>Algorithm</Label>
-                <Select value={algorithm} onValueChange={setAlgorithm}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="moving_average">7-Day Moving Average</SelectItem>
-                    <SelectItem value="exponential_smoothing">Exponential Smoothing</SelectItem>
-                    <SelectItem value="linear_regression">Linear Regression</SelectItem>
-                    <SelectItem value="seasonal_detection">Seasonal Detection</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted/50 flex items-center text-sm">
+                  Exponential Smoothing
+                </div>
               </div>
 
               <div className="space-y-3">
