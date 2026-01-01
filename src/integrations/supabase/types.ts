@@ -14,7 +14,257 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          created_at: string
+          id: string
+          is_resolved: boolean | null
+          message: string
+          product_id: string | null
+          product_name: string
+          severity: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_resolved?: boolean | null
+          message: string
+          product_id?: string | null
+          product_name: string
+          severity: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_resolved?: boolean | null
+          message?: string
+          product_id?: string | null
+          product_name?: string
+          severity?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forecasts: {
+        Row: {
+          actual_vs_predicted: number | null
+          algorithm_used: string
+          confidence_level: number
+          created_at: string
+          created_by: string | null
+          forecast_date: string
+          id: string
+          predicted_demand: number
+          product_id: string | null
+          product_name: string
+        }
+        Insert: {
+          actual_vs_predicted?: number | null
+          algorithm_used: string
+          confidence_level: number
+          created_at?: string
+          created_by?: string | null
+          forecast_date?: string
+          id?: string
+          predicted_demand: number
+          product_id?: string | null
+          product_name: string
+        }
+        Update: {
+          actual_vs_predicted?: number | null
+          algorithm_used?: string
+          confidence_level?: number
+          created_at?: string
+          created_by?: string | null
+          forecast_date?: string
+          id?: string
+          predicted_demand?: number
+          product_id?: string | null
+          product_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecasts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string
+          cost_price: number
+          created_at: string
+          created_by: string | null
+          current_stock: number
+          description: string | null
+          id: string
+          min_stock: number
+          name: string
+          selling_price: number
+          sku: string
+          status: string | null
+          supplier_id: string | null
+        }
+        Insert: {
+          category: string
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          current_stock?: number
+          description?: string | null
+          id?: string
+          min_stock?: number
+          name: string
+          selling_price?: number
+          sku: string
+          status?: string | null
+          supplier_id?: string | null
+        }
+        Update: {
+          category?: string
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          current_stock?: number
+          description?: string | null
+          id?: string
+          min_stock?: number
+          name?: string
+          selling_price?: number
+          sku?: string
+          status?: string | null
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          last_login: string | null
+          role: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          last_login?: string | null
+          role?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          last_login?: string | null
+          role?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          customer_type: string | null
+          id: string
+          product_id: string
+          quantity: number
+          recorded_by: string | null
+          sale_date: string
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          customer_type?: string | null
+          id?: string
+          product_id: string
+          quantity: number
+          recorded_by?: string | null
+          sale_date?: string
+          total: number
+          unit_price: number
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          customer_type?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number
+          recorded_by?: string | null
+          sale_date?: string
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact_email: string | null
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
