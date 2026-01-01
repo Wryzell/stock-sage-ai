@@ -31,42 +31,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserRole = async (userId: string): Promise<AppRole | null> => {
+  const fetchUserProfile = async (userId: string): Promise<{ fullName: string; role: AppRole } | null> => {
     const { data, error } = await supabase
-      .from('user_roles')
-      .select('role')
+      .from('profiles')
+      .select('full_name, role')
       .eq('user_id', userId)
       .maybeSingle();
     
-    if (error || !data) return null;
-    return data.role as AppRole;
-  };
-
-  const fetchUserProfile = async (userId: string): Promise<{ fullName: string; avatarUrl?: string } | null> => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('full_name, avatar_url')
-      .eq('id', userId)
-      .maybeSingle();
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
     
-    if (error || !data) return null;
-    return { fullName: data.full_name || '', avatarUrl: data.avatar_url || undefined };
+    if (!data) return null;
+    
+    return { 
+      fullName: data.full_name || '', 
+      role: (data.role as AppRole) || 'staff'
+    };
   };
 
   const buildAuthUser = async (supabaseUser: User): Promise<AuthUser | null> => {
-    const [role, profile] = await Promise.all([
-      fetchUserRole(supabaseUser.id),
-      fetchUserProfile(supabaseUser.id)
-    ]);
+    const profile = await fetchUserProfile(supabaseUser.id);
 
-    if (!role) return null;
+    // If no profile, use metadata from signup or default to staff
+    const role = profile?.role || 
+                 (supabaseUser.user_metadata?.role as AppRole) || 
+                 'staff';
+    
+    const fullName = profile?.fullName || 
+                     supabaseUser.user_metadata?.full_name || 
+                     supabaseUser.email?.split('@')[0] || '';
 
     return {
       id: supabaseUser.id,
       email: supabaseUser.email || '',
-      fullName: profile?.fullName || supabaseUser.email?.split('@')[0] || '',
+      fullName,
       role,
-      avatarUrl: profile?.avatarUrl,
       lastLogin: new Date().toISOString(),
       status: 'active'
     };
