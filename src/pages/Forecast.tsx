@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { TrendingUp, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TrendingUp, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -41,6 +42,7 @@ export default function Forecast() {
   const [confidence, setConfidence] = useState([80]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
+  const [selectedForecast, setSelectedForecast] = useState<ForecastResult | null>(null);
 
   const handleGenerateForecast = async () => {
     setIsGenerating(true);
@@ -236,14 +238,18 @@ export default function Forecast() {
                     <th>Trend</th>
                     <th>Stockout Risk</th>
                     <th>Reorder Qty</th>
-                    <th>Recommendation</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {forecastData.forecasts
                     .filter(f => f.confidenceLevel >= confidence[0])
                     .map((forecast, index) => (
-                      <tr key={index}>
+                      <tr 
+                        key={index}
+                        onClick={() => setSelectedForecast(forecast)}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      >
                         <td className="font-medium">{forecast.productName}</td>
                         <td className="font-semibold">{forecast.predictedDemand} units</td>
                         <td>
@@ -267,13 +273,27 @@ export default function Forecast() {
                         </td>
                         <td>{getRiskBadge(forecast.stockoutRisk)}</td>
                         <td>{forecast.suggestedReorderQty} units</td>
-                        <td className="max-w-[200px] truncate" title={forecast.recommendation}>
-                          {forecast.recommendation}
+                        <td>
+                          <ChevronRight size={18} className="text-muted-foreground" />
                         </td>
                       </tr>
                     ))}
                 </tbody>
               </table>
+              {forecastData.forecasts.filter(f => f.confidenceLevel >= confidence[0]).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No predictions meet the {confidence[0]}% confidence threshold.</p>
+                  <p className="text-sm mt-1">Try lowering the confidence threshold.</p>
+                </div>
+              )}
+            </div>
+          ) : forecastData ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle size={48} className="mx-auto mb-4 text-warning opacity-70" />
+              <p className="font-medium">No predictions available</p>
+              <p className="text-sm mt-1">
+                The AI could not generate predictions. This may be due to insufficient sales data.
+              </p>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
@@ -287,6 +307,51 @@ export default function Forecast() {
             </div>
           )}
         </div>
+
+        {/* Recommendation Dialog */}
+        <Dialog open={!!selectedForecast} onOpenChange={() => setSelectedForecast(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {selectedForecast?.productName}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedForecast && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Predicted Demand</p>
+                    <p className="font-semibold text-lg">{selectedForecast.predictedDemand} units</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Confidence</p>
+                    <p className="font-semibold text-lg">{selectedForecast.confidenceLevel}%</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Trend</p>
+                    <p className={`font-semibold capitalize ${
+                      selectedForecast.trend === 'increasing' ? 'text-success' :
+                      selectedForecast.trend === 'decreasing' ? 'text-danger' : ''
+                    }`}>
+                      {selectedForecast.trend}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Reorder Qty</p>
+                    <p className="font-semibold">{selectedForecast.suggestedReorderQty} units</p>
+                  </div>
+                </div>
+                <div className="pt-2 border-t">
+                  <p className="text-muted-foreground text-sm mb-1">Recommendation</p>
+                  <p className="text-foreground">{selectedForecast.recommendation}</p>
+                </div>
+                <div>
+                  {getRiskBadge(selectedForecast.stockoutRisk)}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* AI Insights */}
         {forecastData?.insights && forecastData.insights.length > 0 && (
