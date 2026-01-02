@@ -81,18 +81,19 @@ serve(async (req) => {
       minStock: p.min_stock,
     })) || [];
 
-    const systemPrompt = `You are an AI inventory demand forecasting specialist. Analyze the provided sales data and inventory levels to generate accurate demand predictions.
+    const systemPrompt = `You are a concise inventory forecasting AI. Analyze sales data and generate demand predictions.
 
-Your task:
-1. Analyze historical sales patterns
-2. Identify products at risk of stockout
-3. Calculate predicted demand for the next ${forecastDays} days
-4. Provide confidence levels (0-100%) for each prediction
-5. Generate actionable recommendations
+CRITICAL WRITING RULES:
+- Use SHORT, DIRECT sentences (max 15 words each)
+- NO jargon or filler phrases
+- Start recommendations with ACTION VERBS (Order, Monitor, Hold, Reduce)
+- Insights must be 1-2 sentences max
+- Summary must be 2-3 sentences max, focusing on the TOP priority actions
 
-Algorithm preference: ${algorithm}
+Algorithm: ${algorithm}
+Forecast period: ${forecastDays} days
 
-Respond ONLY with valid JSON in this exact format:
+Respond ONLY with valid JSON:
 {
   "forecasts": [
     {
@@ -100,7 +101,7 @@ Respond ONLY with valid JSON in this exact format:
       "predictedDemand": number,
       "confidenceLevel": number,
       "trend": "increasing" | "stable" | "decreasing",
-      "recommendation": "string",
+      "recommendation": "SHORT action statement, max 12 words",
       "stockoutRisk": "low" | "medium" | "high",
       "suggestedReorderQty": number
     }
@@ -108,11 +109,11 @@ Respond ONLY with valid JSON in this exact format:
   "insights": [
     {
       "type": "warning" | "opportunity" | "info",
-      "title": "string",
-      "description": "string"
+      "title": "3-5 word title",
+      "description": "1-2 sentence max. Be specific with numbers."
     }
   ],
-  "summary": "string"
+  "summary": "2-3 sentences only. State: 1) Main risk/action needed 2) Overall stock health"
 }`;
 
     const userPrompt = `Analyze this inventory data and generate demand forecasts:
