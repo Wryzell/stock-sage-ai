@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { TrendingUp, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { TrendingUp, TrendingDown, Minus, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight, Sparkles, Package, Target, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -79,318 +80,333 @@ export default function Forecast() {
   const getInsightIcon = (type: string) => {
     switch (type) {
       case 'warning':
-        return <AlertTriangle size={18} className="text-warning" />;
+        return <AlertTriangle size={16} className="text-warning" />;
       case 'opportunity':
-        return <Lightbulb size={18} className="text-success" />;
+        return <Lightbulb size={16} className="text-success" />;
       default:
-        return <Info size={18} className="text-primary" />;
+        return <Info size={16} className="text-primary" />;
+    }
+  };
+
+  const getInsightLabel = (type: string) => {
+    switch (type) {
+      case 'warning':
+        return 'Action Needed';
+      case 'opportunity':
+        return 'Opportunity';
+      default:
+        return 'Tip';
     }
   };
 
   const getInsightStyle = (type: string) => {
     switch (type) {
       case 'warning':
-        return 'bg-warning/10 border-warning/20';
+        return 'border-l-4 border-l-warning bg-warning/5';
       case 'opportunity':
-        return 'bg-success/10 border-success/20';
+        return 'border-l-4 border-l-success bg-success/5';
       default:
-        return 'bg-primary-light border-primary/20';
+        return 'border-l-4 border-l-primary bg-primary-light';
+    }
+  };
+
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case 'increasing':
+        return <TrendingUp size={16} className="text-success" />;
+      case 'decreasing':
+        return <TrendingDown size={16} className="text-danger" />;
+      default:
+        return <Minus size={16} className="text-muted-foreground" />;
     }
   };
 
   const getRiskBadge = (risk: string) => {
     switch (risk) {
       case 'high':
-        return <span className="status-badge status-danger">High Risk</span>;
+        return <Badge variant="destructive" className="text-xs">High Risk</Badge>;
       case 'medium':
-        return <span className="status-badge status-warning">Medium Risk</span>;
+        return <Badge variant="outline" className="text-xs border-warning text-warning">Medium</Badge>;
       default:
-        return <span className="status-badge status-success">Low Risk</span>;
+        return <Badge variant="outline" className="text-xs border-success text-success">Low</Badge>;
     }
   };
+
+  const filteredForecasts = forecastData?.forecasts?.filter(f => f.confidenceLevel >= confidence[0]) || [];
 
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-heading">AI Forecasting</h1>
+            <h1 className="text-2xl font-bold text-heading flex items-center gap-2">
+              <Sparkles size={24} className="text-primary" />
+              AI Demand Forecast
+            </h1>
             <p className="text-muted-foreground mt-1">
-              {isSuperAdmin ? 'Configure and generate demand forecasts' : 'View demand forecasts'}
+              Predict future product demand using AI analysis
             </p>
           </div>
-          {isSuperAdmin && (
+          {isSuperAdmin && forecastData && (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => handleExport('excel')} className="gap-2">
-                <FileSpreadsheet size={18} />
-                Export Excel
+              <Button variant="outline" size="sm" onClick={() => handleExport('excel')} className="gap-2">
+                <FileSpreadsheet size={16} />
+                Excel
               </Button>
-              <Button variant="outline" onClick={() => handleExport('pdf')} className="gap-2">
-                <Download size={18} />
-                Export PDF
+              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} className="gap-2">
+                <Download size={16} />
+                PDF
               </Button>
             </div>
           )}
         </div>
 
-        {/* Control Panel - Super Admin Only */}
+        {/* Quick Start / Generate Section */}
         {isSuperAdmin && (
           <div className="card-stock-sage animate-fade-in">
-            <h3 className="text-lg font-semibold text-heading mb-4">Forecast Configuration</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <Label>Forecast Period</Label>
-                <Select value={dateRange} onValueChange={setDateRange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30 Days</SelectItem>
-                    <SelectItem value="60">60 Days</SelectItem>
-                    <SelectItem value="90">90 Days</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex-1">
+                <h2 className="text-base font-semibold text-heading mb-1">Generate New Forecast</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Analyze your sales data to predict demand for the next period
+                </p>
+                
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="space-y-1.5 min-w-[140px]">
+                    <Label className="text-xs text-muted-foreground">Time Period</Label>
+                    <Select value={dateRange} onValueChange={setDateRange}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">Next 30 Days</SelectItem>
+                        <SelectItem value="60">Next 60 Days</SelectItem>
+                        <SelectItem value="90">Next 90 Days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Algorithm</Label>
-                <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted/50 flex items-center text-sm">
-                  Exponential Smoothing
+                  <div className="space-y-1.5 min-w-[160px]">
+                    <Label className="text-xs text-muted-foreground">
+                      Min. Confidence: {confidence[0]}%
+                    </Label>
+                    <div className="pt-1">
+                      <Slider
+                        value={confidence}
+                        onValueChange={setConfidence}
+                        max={100}
+                        min={50}
+                        step={5}
+                        className="w-32"
+                      />
+                    </div>
+                  </div>
+
+                  <Button onClick={handleGenerateForecast} disabled={isGenerating} className="gap-2 h-9">
+                    {isGenerating ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={16} />
+                        Generate Forecast
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
-
-              <div className="space-y-3">
-                <Label>Confidence Threshold: {confidence}%</Label>
-                <Slider
-                  value={confidence}
-                  onValueChange={setConfidence}
-                  max={100}
-                  min={50}
-                  step={5}
-                  className="mt-2"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <Button onClick={handleGenerateForecast} disabled={isGenerating} className="gap-2">
-                {isGenerating ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Analyzing with AI...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={18} />
-                    Generate AI Forecast
-                  </>
-                )}
-              </Button>
             </div>
           </div>
         )}
 
-        {/* Staff View - Request Button */}
+        {/* Staff View */}
         {!isSuperAdmin && (
           <div className="card-stock-sage animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-heading">Forecast Updates</h3>
+                <h3 className="text-base font-semibold text-heading">Need Updated Forecast?</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Contact Super Admin to request a new forecast analysis
+                  Request a new forecast analysis from your admin
                 </p>
               </div>
               <Button 
                 variant="outline" 
-                onClick={() => toast.success('Forecast update request sent to Super Admin')}
+                size="sm"
+                onClick={() => toast.success('Request sent to admin')}
               >
-                Request Forecast Update
+                Request Update
               </Button>
             </div>
           </div>
         )}
 
-        {/* Forecast Chart */}
-        <ForecastChart title="Historical vs Predicted Sales" />
-
-        {/* AI Summary */}
+        {/* AI Summary - Prominent when available */}
         {forecastData?.summary && (
-          <div className="card-stock-sage animate-fade-in">
-            <h3 className="text-lg font-semibold text-heading mb-3 flex items-center gap-2">
-              <TrendingUp size={20} className="text-primary" />
-              AI Analysis Summary
-            </h3>
-            <p className="text-muted-foreground">{forecastData.summary}</p>
+          <div className="card-stock-sage animate-fade-in border-l-4 border-l-primary">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary/10 rounded-md">
+                <Target size={20} className="text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-heading mb-1">Summary</h3>
+                <p className="text-muted-foreground">{forecastData.summary}</p>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Forecast Results Table */}
-        <div className="card-stock-sage animate-fade-in">
-          <h3 className="text-lg font-semibold text-heading mb-4">Forecast Predictions</h3>
-          {forecastData?.forecasts && forecastData.forecasts.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Predicted Demand</th>
-                    <th>Confidence</th>
-                    <th>Trend</th>
-                    <th>Stockout Risk</th>
-                    <th>Reorder Qty</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {forecastData.forecasts
-                    .filter(f => f.confidenceLevel >= confidence[0])
-                    .map((forecast, index) => (
-                      <tr 
-                        key={index}
-                        onClick={() => setSelectedForecast(forecast)}
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      >
-                        <td className="font-medium">{forecast.productName}</td>
-                        <td className="font-semibold">{forecast.predictedDemand} units</td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-primary rounded-full"
-                                style={{ width: `${forecast.confidenceLevel}%` }}
-                              />
-                            </div>
-                            <span className="text-sm">{forecast.confidenceLevel}%</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`capitalize ${
-                            forecast.trend === 'increasing' ? 'text-success' :
-                            forecast.trend === 'decreasing' ? 'text-danger' : 'text-muted-foreground'
-                          }`}>
-                            {forecast.trend}
-                          </span>
-                        </td>
-                        <td>{getRiskBadge(forecast.stockoutRisk)}</td>
-                        <td>{forecast.suggestedReorderQty} units</td>
-                        <td>
-                          <ChevronRight size={18} className="text-muted-foreground" />
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-              {forecastData.forecasts.filter(f => f.confidenceLevel >= confidence[0]).length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No predictions meet the {confidence[0]}% confidence threshold.</p>
-                  <p className="text-sm mt-1">Try lowering the confidence threshold.</p>
+        {/* AI Insights - Right after summary */}
+        {forecastData?.insights && forecastData.insights.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
+            {forecastData.insights.map((insight, index) => (
+              <div 
+                key={index}
+                className={`p-4 rounded-md ${getInsightStyle(insight.type)}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  {getInsightIcon(insight.type)}
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {getInsightLabel(insight.type)}
+                  </span>
                 </div>
-              )}
+                <p className="font-medium text-heading text-sm mb-1">{insight.title}</p>
+                <p className="text-sm text-muted-foreground">{insight.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Historical Chart */}
+        <ForecastChart title="Sales Trend (Historical vs Predicted)" />
+
+        {/* Predictions List */}
+        <div className="card-stock-sage animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-heading">Product Predictions</h3>
+              <p className="text-sm text-muted-foreground">
+                Click any product to see detailed recommendation
+              </p>
+            </div>
+            {filteredForecasts.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {filteredForecasts.length} products
+              </span>
+            )}
+          </div>
+
+          {filteredForecasts.length > 0 ? (
+            <div className="space-y-2">
+              {filteredForecasts.map((forecast, index) => (
+                <div 
+                  key={index}
+                  onClick={() => setSelectedForecast(forecast)}
+                  className="flex items-center gap-4 p-3 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors group"
+                >
+                  <div className="p-2 bg-muted rounded-md">
+                    <Package size={18} className="text-muted-foreground" />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-heading truncate">{forecast.productName}</p>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
+                      <span className="flex items-center gap-1">
+                        {getTrendIcon(forecast.trend)}
+                        <span className="capitalize">{forecast.trend}</span>
+                      </span>
+                      <span>•</span>
+                      <span>{forecast.confidenceLevel}% confidence</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right hidden sm:block">
+                    <p className="font-semibold text-heading">{forecast.predictedDemand} units</p>
+                    <p className="text-xs text-muted-foreground">predicted demand</p>
+                  </div>
+
+                  <div className="hidden md:block">
+                    {getRiskBadge(forecast.stockoutRisk)}
+                  </div>
+
+                  <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+              ))}
+            </div>
+          ) : forecastData?.forecasts && forecastData.forecasts.length > 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="font-medium">No results at {confidence[0]}% confidence</p>
+              <p className="text-sm mt-1">Lower the threshold to see more predictions</p>
             </div>
           ) : forecastData ? (
             <div className="text-center py-8 text-muted-foreground">
-              <AlertTriangle size={48} className="mx-auto mb-4 text-warning opacity-70" />
-              <p className="font-medium">No predictions available</p>
-              <p className="text-sm mt-1">
-                The AI could not generate predictions. This may be due to insufficient sales data.
-              </p>
+              <AlertTriangle size={40} className="mx-auto mb-3 text-warning opacity-70" />
+              <p className="font-medium">Not enough data</p>
+              <p className="text-sm mt-1">Add more sales records to generate predictions</p>
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              <TrendingUp size={48} className="mx-auto mb-4 opacity-50" />
-              <p>No forecast data available.</p>
+              <ShoppingCart size={40} className="mx-auto mb-3 opacity-40" />
+              <p className="font-medium">No forecast yet</p>
               <p className="text-sm mt-1">
                 {isSuperAdmin 
-                  ? 'Click "Generate AI Forecast" to analyze your inventory data.' 
-                  : 'Request a forecast update from your Super Admin.'}
+                  ? 'Click "Generate Forecast" above to start' 
+                  : 'Request a forecast from your admin'}
               </p>
             </div>
           )}
         </div>
 
-        {/* Recommendation Dialog */}
+        {/* Product Detail Dialog */}
         <Dialog open={!!selectedForecast} onOpenChange={() => setSelectedForecast(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Package size={20} className="text-primary" />
                 {selectedForecast?.productName}
               </DialogTitle>
             </DialogHeader>
             {selectedForecast && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Predicted Demand</p>
-                    <p className="font-semibold text-lg">{selectedForecast.predictedDemand} units</p>
+              <div className="space-y-5">
+                {/* Key Metrics */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-muted/50 rounded-md">
+                    <p className="text-xs text-muted-foreground mb-1">Predicted Demand</p>
+                    <p className="text-xl font-bold text-heading">{selectedForecast.predictedDemand}</p>
+                    <p className="text-xs text-muted-foreground">units needed</p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Confidence</p>
-                    <p className="font-semibold text-lg">{selectedForecast.confidenceLevel}%</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Trend</p>
-                    <p className={`font-semibold capitalize ${
-                      selectedForecast.trend === 'increasing' ? 'text-success' :
-                      selectedForecast.trend === 'decreasing' ? 'text-danger' : ''
-                    }`}>
-                      {selectedForecast.trend}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Reorder Qty</p>
-                    <p className="font-semibold">{selectedForecast.suggestedReorderQty} units</p>
+                  <div className="p-3 bg-muted/50 rounded-md">
+                    <p className="text-xs text-muted-foreground mb-1">Reorder Now</p>
+                    <p className="text-xl font-bold text-primary">{selectedForecast.suggestedReorderQty}</p>
+                    <p className="text-xs text-muted-foreground">units to order</p>
                   </div>
                 </div>
-                <div className="pt-2 border-t">
-                  <p className="text-muted-foreground text-sm mb-1">Recommendation</p>
-                  <p className="text-foreground">{selectedForecast.recommendation}</p>
-                </div>
-                <div>
+
+                {/* Status Row */}
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    {getTrendIcon(selectedForecast.trend)}
+                    <span className="capitalize">{selectedForecast.trend} trend</span>
+                  </div>
+                  <span className="text-muted-foreground">•</span>
+                  <span>{selectedForecast.confidenceLevel}% confidence</span>
+                  <span className="text-muted-foreground">•</span>
                   {getRiskBadge(selectedForecast.stockoutRisk)}
+                </div>
+
+                {/* Recommendation */}
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-md">
+                  <p className="text-xs font-medium text-primary mb-2 uppercase tracking-wide">
+                    AI Recommendation
+                  </p>
+                  <p className="text-foreground leading-relaxed">{selectedForecast.recommendation}</p>
                 </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
-
-        {/* AI Insights */}
-        {forecastData?.insights && forecastData.insights.length > 0 && (
-          <div className="card-stock-sage animate-fade-in">
-            <h3 className="text-lg font-semibold text-heading mb-4 flex items-center gap-2">
-              <Lightbulb size={20} className="text-primary" />
-              AI Insights
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {forecastData.insights.map((insight, index) => (
-                <div 
-                  key={index}
-                  className={`p-4 rounded-md border ${getInsightStyle(insight.type)}`}
-                >
-                  <p className="font-medium text-heading flex items-center gap-2">
-                    {getInsightIcon(insight.type)}
-                    {insight.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {insight.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Default insights when no AI data */}
-        {!forecastData && (
-          <div className="card-stock-sage animate-fade-in">
-            <h3 className="text-lg font-semibold text-heading mb-4 flex items-center gap-2">
-              <TrendingUp size={20} className="text-primary" />
-              AI Insights
-            </h3>
-            <div className="text-center py-6 text-muted-foreground">
-              <p>Generate a forecast to see AI-powered insights about your inventory.</p>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );
