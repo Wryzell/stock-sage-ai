@@ -1,21 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { mockSales, mockProducts } from '@/data/mockData';
 import { Sale } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Search, Edit2, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Product {
+  id: string;
+  name: string;
+  selling_price: number;
+  current_stock: number;
+}
 
 export default function Sales() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
   
-  const [sales, setSales] = useState<Sale[]>(mockSales);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'view'>('add');
@@ -27,9 +37,62 @@ export default function Sales() {
     quantity: 1,
   });
 
-  const filteredSales = isSuperAdmin 
-    ? sales.filter(s => s.productName.toLowerCase().includes(searchTerm.toLowerCase()))
-    : sales.filter(s => s.saleDate === '2024-12-29' && s.recordedBy === user?.id);
+  useEffect(() => {
+    fetchSales();
+    fetchProducts();
+  }, []);
+
+  const fetchSales = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          products (name, selling_price)
+        `)
+        .order('sale_date', { ascending: false });
+
+      if (error) throw error;
+
+      const mappedSales: Sale[] = (data || []).map(s => ({
+        id: s.id,
+        productId: s.product_id,
+        productName: s.products?.name || 'Unknown Product',
+        quantity: s.quantity,
+        unitPrice: Number(s.unit_price),
+        total: Number(s.total),
+        saleDate: s.sale_date,
+        recordedBy: s.recorded_by || '',
+      }));
+
+      setSales(mappedSales);
+    } catch (error: any) {
+      console.error('Error fetching sales:', error);
+      toast.error('Failed to load sales');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, selling_price, current_stock')
+        .gt('current_stock', 0)
+        .order('name');
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error: any) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
+  const filteredSales = sales.filter(s => 
+    s.productName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
@@ -51,37 +114,76 @@ export default function Sales() {
     setIsDialogOpen(true);
   };
 
-  const handleSubmitSale = () => {
-    const product = mockProducts.find(p => p.id === newSale.productId);
+  const handleSubmitSale = async () => {
+    const product = products.find(p => p.id === newSale.productId);
     if (!product) {
       toast.error('Please select a product');
       return;
     }
 
-    const sale: Sale = {
-      id: (sales.length + 1).toString(),
-      productId: newSale.productId,
-      productName: product.name,
-      quantity: newSale.quantity,
-      unitPrice: product.sellingPrice,
-      total: product.sellingPrice * newSale.quantity,
-      saleDate: new Date().toISOString().split('T')[0],
-      recordedBy: user?.id || '',
-    };
+    if (newSale.quantity <= 0) {
+      toast.error('Quantity must be greater than 0');
+      return;
+    }
 
-    setSales([sale, ...sales]);
-    setIsDialogOpen(false);
-    toast.success('Sale recorded successfully');
+    setSaving(true);
+    try {
+      const total = product.selling_price * newSale.quantity;
+
+      const { error } = await supabase
+        .from('sales')
+        .insert({
+          product_id: newSale.productId,
+          quantity: newSale.quantity,
+          unit_price: product.selling_price,
+          total: total,
+          recorded_by: user?.id || null,
+        });
+
+      if (error) throw error;
+
+      setIsDialogOpen(false);
+      toast.success('Sale recorded successfully');
+      fetchSales();
+      fetchProducts(); // Refresh stock
+    } catch (error: any) {
+      console.error('Error recording sale:', error);
+      toast.error('Failed to record sale');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDeleteSale = (sale: Sale) => {
+  const handleDeleteSale = async (sale: Sale) => {
     if (confirm('Are you sure you want to delete this transaction?')) {
-      setSales(sales.filter(s => s.id !== sale.id));
-      toast.success('Transaction deleted');
+      try {
+        const { error } = await supabase
+          .from('sales')
+          .delete()
+          .eq('id', sale.id);
+
+        if (error) throw error;
+
+        setSales(sales.filter(s => s.id !== sale.id));
+        toast.success('Transaction deleted');
+      } catch (error: any) {
+        console.error('Error deleting sale:', error);
+        toast.error('Failed to delete transaction');
+      }
     }
   };
 
   const totalSales = filteredSales.reduce((acc, s) => acc + s.total, 0);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -120,19 +222,17 @@ export default function Sales() {
         </div>
 
         {/* Search */}
-        {isSuperAdmin && (
-          <div className="card-stock-sage">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-              <Input
-                placeholder="Search transactions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+        <div className="card-stock-sage">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <Input
+              placeholder="Search transactions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        )}
+        </div>
 
         {/* Sales Table */}
         <div className="card-stock-sage p-0 overflow-hidden animate-fade-in">
@@ -149,42 +249,50 @@ export default function Sales() {
                 </tr>
               </thead>
               <tbody>
-                {filteredSales.map((sale) => (
-                  <tr key={sale.id}>
-                    <td>{new Date(sale.saleDate).toLocaleDateString()}</td>
-                    <td className="font-medium">{sale.productName}</td>
-                    <td>{sale.quantity}</td>
-                    <td>{formatCurrency(sale.unitPrice)}</td>
-                    <td className="font-semibold">{formatCurrency(sale.total)}</td>
-                    <td>
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleViewSale(sale)}
-                        >
-                          <Eye size={16} />
-                        </Button>
-                        {isSuperAdmin && (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Edit2 size={16} />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-danger hover:text-danger"
-                              onClick={() => handleDeleteSale(sale)}
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                {filteredSales.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No sales found
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredSales.map((sale) => (
+                    <tr key={sale.id}>
+                      <td>{new Date(sale.saleDate).toLocaleDateString()}</td>
+                      <td className="font-medium">{sale.productName}</td>
+                      <td>{sale.quantity}</td>
+                      <td>{formatCurrency(sale.unitPrice)}</td>
+                      <td className="font-semibold">{formatCurrency(sale.total)}</td>
+                      <td>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => handleViewSale(sale)}
+                          >
+                            <Eye size={16} />
+                          </Button>
+                          {isSuperAdmin && (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Edit2 size={16} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-danger hover:text-danger"
+                                onClick={() => handleDeleteSale(sale)}
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -211,9 +319,9 @@ export default function Sales() {
                       <SelectValue placeholder="Select a product" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockProducts.filter(p => p.currentStock > 0).map(product => (
+                      {products.map(product => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name} - {formatCurrency(product.sellingPrice)}
+                          {product.name} - {formatCurrency(product.selling_price)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -235,7 +343,7 @@ export default function Sales() {
                     <p className="text-sm text-muted-foreground">Estimated Total</p>
                     <p className="text-xl font-bold text-primary">
                       {formatCurrency(
-                        (mockProducts.find(p => p.id === newSale.productId)?.sellingPrice || 0) * newSale.quantity
+                        (products.find(p => p.id === newSale.productId)?.selling_price || 0) * newSale.quantity
                       )}
                     </p>
                   </div>
@@ -245,7 +353,7 @@ export default function Sales() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Transaction ID</Label>
-                  <p className="font-mono mt-1">#{selectedSale.id}</p>
+                  <p className="font-mono mt-1 text-xs">#{selectedSale.id.slice(0, 8)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Date</Label>
@@ -275,7 +383,8 @@ export default function Sales() {
                 {dialogMode === 'view' ? 'Close' : 'Cancel'}
               </Button>
               {dialogMode === 'add' && (
-                <Button onClick={handleSubmitSale}>
+                <Button onClick={handleSubmitSale} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Record Sale
                 </Button>
               )}
