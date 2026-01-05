@@ -163,85 +163,62 @@ export default function Forecast() {
         </div>
 
         {/* Quick Start / Generate Section */}
-        {isSuperAdmin && (
-          <div className="card-stock-sage animate-fade-in">
-            <div className="flex items-start justify-between gap-6">
-              <div className="flex-1">
-                <h2 className="text-base font-semibold text-heading mb-1">Generate New Forecast</h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Analyze your sales data to predict demand for the next period
-                </p>
-                
-                <div className="flex flex-wrap items-end gap-4">
-                  <div className="space-y-1.5 min-w-[140px]">
-                    <Label className="text-xs text-muted-foreground">Time Period</Label>
-                    <Select value={dateRange} onValueChange={setDateRange}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="30">Next 30 Days</SelectItem>
-                        <SelectItem value="60">Next 60 Days</SelectItem>
-                        <SelectItem value="90">Next 90 Days</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5 min-w-[160px]">
-                    <Label className="text-xs text-muted-foreground">
-                      Min. Confidence: {confidence[0]}%
-                    </Label>
-                    <div className="pt-1">
-                      <Slider
-                        value={confidence}
-                        onValueChange={setConfidence}
-                        max={100}
-                        min={50}
-                        step={5}
-                        className="w-32"
-                      />
-                    </div>
-                  </div>
-
-                  <Button onClick={handleGenerateForecast} disabled={isGenerating} className="gap-2 h-9">
-                    {isGenerating ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw size={16} />
-                        Generate Forecast
-                      </>
-                    )}
-                  </Button>
+        <div className="card-stock-sage animate-fade-in">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1">
+              <h2 className="text-base font-semibold text-heading mb-1">Generate New Forecast</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Analyze your sales data to predict demand for the next period
+              </p>
+              
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5 min-w-[140px]">
+                  <Label className="text-xs text-muted-foreground">Time Period</Label>
+                  <Select value={dateRange} onValueChange={setDateRange}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">Next 30 Days</SelectItem>
+                      <SelectItem value="60">Next 60 Days</SelectItem>
+                      <SelectItem value="90">Next 90 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Staff View */}
-        {!isSuperAdmin && (
-          <div className="card-stock-sage animate-fade-in">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-heading">Need Updated Forecast?</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Request a new forecast analysis from your admin
-                </p>
+                <div className="space-y-1.5 min-w-[160px]">
+                  <Label className="text-xs text-muted-foreground">
+                    Min. Confidence: {confidence[0]}%
+                  </Label>
+                  <div className="pt-1">
+                    <Slider
+                      value={confidence}
+                      onValueChange={setConfidence}
+                      max={100}
+                      min={50}
+                      step={5}
+                      className="w-32"
+                    />
+                  </div>
+                </div>
+
+                <Button onClick={handleGenerateForecast} disabled={isGenerating} className="gap-2 h-9">
+                  {isGenerating ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={16} />
+                      Generate Forecast
+                    </>
+                  )}
+                </Button>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => toast.success('Request sent to admin')}
-              >
-                Request Update
-              </Button>
             </div>
           </div>
-        )}
+        </div>
 
         {/* AI Summary - Prominent when available */}
         {forecastData?.summary && (
@@ -351,9 +328,7 @@ export default function Forecast() {
               <ShoppingCart size={40} className="mx-auto mb-3 opacity-40" />
               <p className="font-medium">No forecast yet</p>
               <p className="text-sm mt-1">
-                {isSuperAdmin 
-                  ? 'Click "Generate Forecast" above to start' 
-                  : 'Request a forecast from your admin'}
+                Click "Generate Forecast" above to start
               </p>
             </div>
           )}
