@@ -236,22 +236,22 @@ export default function Products() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-heading">Products</h1>
-            <p className="text-muted-foreground mt-1">
-              {isSuperAdmin ? 'Manage your product inventory' : 'View product inventory'}
+          <p className="text-muted-foreground mt-1">
+              Manage your product inventory
             </p>
           </div>
-          {isSuperAdmin && (
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            {isSuperAdmin && (
               <Button variant="outline" className="gap-2">
                 <Upload size={18} />
                 Import CSV
               </Button>
-              <Button onClick={handleAddNew} className="gap-2">
-                <Plus size={18} />
-                Add Product
-              </Button>
-            </div>
-          )}
+            )}
+            <Button onClick={handleAddNew} className="gap-2">
+              <Plus size={18} />
+              Add Product
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -298,7 +298,7 @@ export default function Products() {
         <div className="card-stock-sage p-0 overflow-hidden">
           <ProductsTable
             products={filteredProducts}
-            isEditable={isSuperAdmin}
+            isEditable={true}
             onView={handleView}
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -369,7 +369,7 @@ export default function Products() {
               </div>
             )}
 
-            {(dialogMode === 'edit' || dialogMode === 'add') && isSuperAdmin && (
+            {(dialogMode === 'edit' || dialogMode === 'add') && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="sku">SKU *</Label>
@@ -458,7 +458,7 @@ export default function Products() {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 {dialogMode === 'view' ? 'Close' : 'Cancel'}
               </Button>
-              {(dialogMode === 'edit' || dialogMode === 'add') && isSuperAdmin && (
+              {(dialogMode === 'edit' || dialogMode === 'add') && (
                 <Button onClick={handleSave} disabled={saving}>
                   {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {dialogMode === 'add' ? 'Add Product' : 'Save Changes'}
