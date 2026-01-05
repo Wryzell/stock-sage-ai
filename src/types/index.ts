@@ -36,7 +36,6 @@ export interface Sale {
   unitPrice: number;
   total: number;
   saleDate: string;
-  customerType: 'retail' | 'wholesale' | 'corporate';
   recordedBy: string;
   approvedBy?: string;
 }

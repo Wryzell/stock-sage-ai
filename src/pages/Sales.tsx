@@ -25,7 +25,6 @@ export default function Sales() {
   const [newSale, setNewSale] = useState({
     productId: '',
     quantity: 1,
-    customerType: 'retail' as Sale['customerType'],
   });
 
   const filteredSales = isSuperAdmin 
@@ -42,7 +41,7 @@ export default function Sales() {
 
   const handleAddSale = () => {
     setDialogMode('add');
-    setNewSale({ productId: '', quantity: 1, customerType: 'retail' });
+    setNewSale({ productId: '', quantity: 1 });
     setIsDialogOpen(true);
   };
 
@@ -67,7 +66,6 @@ export default function Sales() {
       unitPrice: product.sellingPrice,
       total: product.sellingPrice * newSale.quantity,
       saleDate: new Date().toISOString().split('T')[0],
-      customerType: newSale.customerType,
       recordedBy: user?.id || '',
     };
 
@@ -147,7 +145,6 @@ export default function Sales() {
                   <th>Quantity</th>
                   <th>Unit Price</th>
                   <th>Total</th>
-                  <th>Customer Type</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -159,11 +156,6 @@ export default function Sales() {
                     <td>{sale.quantity}</td>
                     <td>{formatCurrency(sale.unitPrice)}</td>
                     <td className="font-semibold">{formatCurrency(sale.total)}</td>
-                    <td>
-                      <span className="status-badge bg-primary/10 text-primary capitalize">
-                        {sale.customerType}
-                      </span>
-                    </td>
                     <td>
                       <div className="flex items-center gap-1">
                         <Button 
@@ -238,23 +230,6 @@ export default function Sales() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Customer Type</Label>
-                  <Select 
-                    value={newSale.customerType} 
-                    onValueChange={(value) => setNewSale({ ...newSale, customerType: value as Sale['customerType'] })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="retail">Retail</SelectItem>
-                      <SelectItem value="wholesale">Wholesale</SelectItem>
-                      <SelectItem value="corporate">Corporate</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {newSale.productId && (
                   <div className="p-4 rounded-md bg-muted border border-border">
                     <p className="text-sm text-muted-foreground">Estimated Total</p>
@@ -291,10 +266,6 @@ export default function Sales() {
                 <div>
                   <Label className="text-muted-foreground">Total</Label>
                   <p className="font-semibold text-primary mt-1">{formatCurrency(selectedSale.total)}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Customer Type</Label>
-                  <p className="capitalize mt-1">{selectedSale.customerType}</p>
                 </div>
               </div>
             )}
