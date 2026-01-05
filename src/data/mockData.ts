@@ -55,11 +55,11 @@ export const mockProducts: Product[] = [
 ];
 
 export const mockSales: Sale[] = [
-  { id: '1', productId: '1', productName: 'Dell XPS 13 Laptop', quantity: 2, unitPrice: 72000, total: 144000, saleDate: '2024-12-29', customerType: 'corporate', recordedBy: '2' },
-  { id: '2', productId: '2', productName: 'Logitech MX Master 3S', quantity: 5, unitPrice: 5999, total: 29995, saleDate: '2024-12-29', customerType: 'retail', recordedBy: '3' },
-  { id: '3', productId: '4', productName: 'Razer BlackWidow V4', quantity: 3, unitPrice: 11999, total: 35997, saleDate: '2024-12-28', customerType: 'retail', recordedBy: '2' },
-  { id: '4', productId: '6', productName: 'Samsung 970 EVO Plus 1TB', quantity: 8, unitPrice: 7499, total: 59992, saleDate: '2024-12-28', customerType: 'wholesale', recordedBy: '3' },
-  { id: '5', productId: '10', productName: 'NVIDIA RTX 4070 Super', quantity: 1, unitPrice: 42999, total: 42999, saleDate: '2024-12-27', customerType: 'retail', recordedBy: '2' },
+  { id: '1', productId: '1', productName: 'Dell XPS 13 Laptop', quantity: 2, unitPrice: 72000, total: 144000, saleDate: '2024-12-29', recordedBy: '2' },
+  { id: '2', productId: '2', productName: 'Logitech MX Master 3S', quantity: 5, unitPrice: 5999, total: 29995, saleDate: '2024-12-29', recordedBy: '3' },
+  { id: '3', productId: '4', productName: 'Razer BlackWidow V4', quantity: 3, unitPrice: 11999, total: 35997, saleDate: '2024-12-28', recordedBy: '2' },
+  { id: '4', productId: '6', productName: 'Samsung 970 EVO Plus 1TB', quantity: 8, unitPrice: 7499, total: 59992, saleDate: '2024-12-28', recordedBy: '3' },
+  { id: '5', productId: '10', productName: 'NVIDIA RTX 4070 Super', quantity: 1, unitPrice: 42999, total: 42999, saleDate: '2024-12-27', recordedBy: '2' },
 ];
 
 export const mockForecasts: Forecast[] = [

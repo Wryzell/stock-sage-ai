@@ -195,7 +195,6 @@ export type Database = {
         Row: {
           approved_by: string | null
           created_at: string
-          customer_type: string | null
           id: string
           product_id: string
           quantity: number
@@ -207,7 +206,6 @@ export type Database = {
         Insert: {
           approved_by?: string | null
           created_at?: string
-          customer_type?: string | null
           id?: string
           product_id: string
           quantity: number
@@ -219,7 +217,6 @@ export type Database = {
         Update: {
           approved_by?: string | null
           created_at?: string
-          customer_type?: string | null
           id?: string
           product_id?: string
           quantity?: number
