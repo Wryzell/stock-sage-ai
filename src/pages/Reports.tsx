@@ -59,7 +59,7 @@ const reportTypes: ReportType[] = [
 
 export default function Reports() {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin';
   
   const [selectedReport, setSelectedReport] = useState<string>('daily');
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
@@ -72,7 +72,7 @@ export default function Reports() {
   const [inventorySummary, setInventorySummary] = useState<{ category: string; products: number; totalStock: number; valuation: number }[]>([]);
   const [salesData, setSalesData] = useState<{ totalRevenue: number; transactions: number; avgTransaction: number }>({ totalRevenue: 0, transactions: 0, avgTransaction: 0 });
 
-  const availableReports = isSuperAdmin 
+  const availableReports = isAdmin 
     ? reportTypes 
     : reportTypes.filter(r => !r.adminOnly);
 
@@ -284,7 +284,7 @@ export default function Reports() {
           <div>
             <h1 className="text-2xl font-bold text-heading">Reports</h1>
             <p className="text-muted-foreground mt-1">
-              {isSuperAdmin ? 'Generate and export comprehensive reports' : 'View and print daily reports'}
+              {isAdmin ? 'Generate and export comprehensive reports' : 'View and print daily reports'}
             </p>
           </div>
         </div>
@@ -369,7 +369,7 @@ export default function Reports() {
                   {availableReports.find(r => r.id === selectedReport)?.name}
                 </h3>
                 <div className="flex gap-2 print:hidden">
-                  {isSuperAdmin && (
+                  {isAdmin && (
                     <>
                       <Button variant="outline" size="sm" onClick={() => handleExport('excel')} className="gap-2">
                         <Download size={16} />

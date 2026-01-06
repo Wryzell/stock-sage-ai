@@ -5,7 +5,7 @@ export const mockUsers: User[] = [
     id: '1',
     email: 'admin@demo.com',
     fullName: 'System Administrator',
-    role: 'super_admin',
+    role: 'admin',
     status: 'active',
     createdAt: '2024-01-01',
     lastLogin: '2024-12-29T08:30:00',

@@ -70,7 +70,7 @@ export default function Profile() {
             <div className="space-y-2">
               <Label>Role</Label>
               <Input 
-                value={user?.role === 'super_admin' ? 'Super Administrator' : 'Staff Member'} 
+                value={user?.role === 'admin' ? 'Administrator' : 'Staff Member'} 
                 disabled
                 className="bg-muted"
               />

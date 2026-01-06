@@ -4,7 +4,6 @@ import { Layout } from '@/components/Layout';
 import { ForecastChart } from '@/components/ForecastChart';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -36,11 +35,11 @@ interface ForecastData {
 
 export default function Forecast() {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin';
   
   const [dateRange, setDateRange] = useState('30');
   const algorithm = 'exponential_smoothing';
-  const [confidence, setConfidence] = useState([80]);
+  // Removed confidence filter - show all predictions
   const [isGenerating, setIsGenerating] = useState(false);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<ForecastResult | null>(null);
@@ -132,7 +131,7 @@ export default function Forecast() {
     }
   };
 
-  const filteredForecasts = forecastData?.forecasts?.filter(f => f.confidenceLevel >= confidence[0]) || [];
+  const forecasts = forecastData?.forecasts || [];
 
   return (
     <Layout>
@@ -148,7 +147,7 @@ export default function Forecast() {
               Predict future product demand using AI analysis
             </p>
           </div>
-          {isSuperAdmin && forecastData && (
+          {isAdmin && forecastData && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => handleExport('excel')} className="gap-2">
                 <FileSpreadsheet size={16} />
@@ -184,31 +183,6 @@ export default function Forecast() {
                       <SelectItem value="90">Next 90 Days</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-1.5 min-w-[160px]">
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    Min. Confidence: {confidence[0]}%
-                    <span 
-                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] cursor-help"
-                      title="Filter predictions by AI confidence level. Higher confidence = more reliable predictions, fewer results. Lower = more results, less certainty."
-                    >
-                      ?
-                    </span>
-                  </Label>
-                  <div className="pt-1">
-                    <Slider
-                      value={confidence}
-                      onValueChange={setConfidence}
-                      max={100}
-                      min={50}
-                      step={5}
-                      className="w-32"
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Filters out low-confidence predictions
-                  </p>
                 </div>
 
                 <Button onClick={handleGenerateForecast} disabled={isGenerating} className="gap-2 h-9">
@@ -277,16 +251,16 @@ export default function Forecast() {
                 Click any product to see detailed recommendation
               </p>
             </div>
-            {filteredForecasts.length > 0 && (
+            {forecasts.length > 0 && (
               <span className="text-sm text-muted-foreground">
-                {filteredForecasts.length} products
+                {forecasts.length} products
               </span>
             )}
           </div>
 
-          {filteredForecasts.length > 0 ? (
+          {forecasts.length > 0 ? (
             <div className="space-y-2">
-              {filteredForecasts.map((forecast, index) => (
+              {forecasts.map((forecast, index) => (
                 <div 
                   key={index}
                   onClick={() => setSelectedForecast(forecast)}
@@ -320,11 +294,6 @@ export default function Forecast() {
                   <ChevronRight size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
               ))}
-            </div>
-          ) : forecastData?.forecasts && forecastData.forecasts.length > 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p className="font-medium">No results at {confidence[0]}% confidence</p>
-              <p className="text-sm mt-1">Lower the threshold to see more predictions</p>
             </div>
           ) : forecastData ? (
             <div className="text-center py-8 text-muted-foreground">

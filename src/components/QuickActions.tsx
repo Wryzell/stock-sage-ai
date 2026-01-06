@@ -10,10 +10,10 @@ interface QuickAction {
 }
 
 interface QuickActionsProps {
-  isSuperAdmin: boolean;
+  isAdmin: boolean;
 }
 
-export function QuickActions({ isSuperAdmin }: QuickActionsProps) {
+export function QuickActions({ isAdmin }: QuickActionsProps) {
   const adminActions: QuickAction[] = [
     { label: 'Add New Product', icon: Plus, href: '/products?action=add' },
     { label: 'Add Staff User', icon: UserPlus, href: '/settings?tab=users' },
@@ -27,7 +27,7 @@ export function QuickActions({ isSuperAdmin }: QuickActionsProps) {
     { label: 'Print Report', icon: FileText, href: '/reports' },
   ];
 
-  const actions = isSuperAdmin ? adminActions : staffActions;
+  const actions = isAdmin ? adminActions : staffActions;
 
   return (
     <div className="card-stock-sage animate-fade-in">

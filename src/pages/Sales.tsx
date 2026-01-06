@@ -20,7 +20,7 @@ interface Product {
 
 export default function Sales() {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin';
   
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -192,7 +192,7 @@ export default function Sales() {
           <div>
             <h1 className="text-2xl font-bold text-heading">Sales Transactions</h1>
             <p className="text-muted-foreground mt-1">
-              {isSuperAdmin ? 'Manage all sales transactions' : 'Record and view your sales'}
+              {isAdmin ? 'Manage all sales transactions' : 'Record and view your sales'}
             </p>
           </div>
           <Button onClick={handleAddSale} className="gap-2">
@@ -273,7 +273,7 @@ export default function Sales() {
                           >
                             <Eye size={16} />
                           </Button>
-                          {isSuperAdmin && (
+                          {isAdmin && (
                             <>
                               <Button variant="ghost" size="icon" className="h-8 w-8">
                                 <Edit2 size={16} />
