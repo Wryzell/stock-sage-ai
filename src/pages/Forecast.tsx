@@ -187,8 +187,14 @@ export default function Forecast() {
                 </div>
 
                 <div className="space-y-1.5 min-w-[160px]">
-                  <Label className="text-xs text-muted-foreground">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                     Min. Confidence: {confidence[0]}%
+                    <span 
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] cursor-help"
+                      title="Filter predictions by AI confidence level. Higher confidence = more reliable predictions, fewer results. Lower = more results, less certainty."
+                    >
+                      ?
+                    </span>
                   </Label>
                   <div className="pt-1">
                     <Slider
@@ -200,6 +206,9 @@ export default function Forecast() {
                       className="w-32"
                     />
                   </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Filters out low-confidence predictions
+                  </p>
                 </div>
 
                 <Button onClick={handleGenerateForecast} disabled={isGenerating} className="gap-2 h-9">
