@@ -174,12 +174,12 @@ export default function Login() {
                     </Button>
                     <Button
                       type="button"
-                      variant={role === 'super_admin' ? 'default' : 'outline'}
+                      variant={role === 'admin' ? 'default' : 'outline'}
                       className="flex-1"
-                      onClick={() => setRole('super_admin')}
+                      onClick={() => setRole('admin')}
                       disabled={isLoading}
                     >
-                      Super Admin
+                      Admin
                     </Button>
                   </div>
                 </div>

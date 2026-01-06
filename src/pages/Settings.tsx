@@ -17,7 +17,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('system');
 
   // Redirect staff users
-  if (user?.role !== 'super_admin') {
+  if (user?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -136,21 +136,10 @@ export default function Settings() {
           <TabsContent value="ai" className="space-y-6">
             <div className="card-stock-sage animate-fade-in">
               <h3 className="text-lg font-semibold text-heading mb-4">Forecasting Parameters</h3>
+              <p className="text-muted-foreground mb-4">
+                The system uses Exponential Smoothing algorithm for demand prediction.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Default Algorithm</Label>
-                  <Select defaultValue="exponential">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="moving">7-Day Moving Average</SelectItem>
-                      <SelectItem value="exponential">Exponential Smoothing</SelectItem>
-                      <SelectItem value="linear">Linear Regression</SelectItem>
-                      <SelectItem value="seasonal">Seasonal Detection</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-2">
                   <Label>Default Forecast Period</Label>
                   <Select defaultValue="30">
@@ -163,11 +152,6 @@ export default function Settings() {
                       <SelectItem value="90">90 Days</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Minimum Confidence Level</Label>
-                  <Input type="number" defaultValue={70} min={50} max={100} />
-                  <p className="text-xs text-muted-foreground">Forecasts below this threshold will be flagged</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Training Data Window</Label>

@@ -34,15 +34,15 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin';
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'staff'] },
-    { path: '/products', label: 'Products', icon: Package, roles: ['super_admin', 'staff'] },
-    { path: '/forecast', label: 'Forecast', icon: TrendingUp, roles: ['super_admin', 'staff'] },
-    { path: '/sales', label: 'Sales', icon: ShoppingCart, roles: ['super_admin', 'staff'] },
-    { path: '/reports', label: 'Reports', icon: FileText, roles: ['super_admin', 'staff'] },
-    { path: '/settings', label: 'Settings', icon: Settings, roles: ['super_admin'] },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'staff'] },
+    { path: '/products', label: 'Products', icon: Package, roles: ['admin', 'staff'] },
+    { path: '/forecast', label: 'Forecast', icon: TrendingUp, roles: ['admin', 'staff'] },
+    { path: '/sales', label: 'Sales', icon: ShoppingCart, roles: ['admin', 'staff'] },
+    { path: '/reports', label: 'Reports', icon: FileText, roles: ['admin', 'staff'] },
+    { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] },
   ];
 
   const filteredNavItems = navItems.filter(item => 
@@ -98,7 +98,7 @@ export function Layout({ children }: LayoutProps) {
                       <User size={16} className="text-primary-foreground" />
                     </div>
                     <span className="hidden sm:block text-sm font-medium">
-                      {isSuperAdmin ? 'Super Admin' : 'Staff User'}
+                      {isAdmin ? 'Admin' : 'Staff User'}
                     </span>
                     <ChevronDown size={16} className="text-muted-foreground" />
                   </Button>

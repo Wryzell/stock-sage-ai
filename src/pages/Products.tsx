@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export default function Products() {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin';
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,7 +241,7 @@ export default function Products() {
             </p>
           </div>
           <div className="flex gap-2">
-            {isSuperAdmin && (
+            {isAdmin && (
               <Button variant="outline" className="gap-2">
                 <Upload size={18} />
                 Import CSV

@@ -10,7 +10,7 @@ import { Package, Users, AlertTriangle, TrendingUp, ShoppingCart, ClipboardList 
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin';
 
   const totalProducts = mockProducts.length;
   const lowStockItems = mockProducts.filter(p => p.status === 'low_stock' || p.status === 'out_of_stock').length;
@@ -27,7 +27,7 @@ export default function Dashboard() {
 
   const staffAssignedProducts = mockProducts.slice(0, 5);
 
-  if (isSuperAdmin) {
+  if (isAdmin) {
     return (
       <Layout>
         <div className="space-y-6">
@@ -82,7 +82,7 @@ export default function Dashboard() {
               <ForecastChart />
             </div>
             <div>
-              <QuickActions isSuperAdmin={isSuperAdmin} />
+              <QuickActions isAdmin={isAdmin} />
             </div>
           </div>
         </div>
