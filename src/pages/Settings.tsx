@@ -533,7 +533,7 @@ export default function Settings() {
           </TabsContent>
 
           {/* Import/Export Data */}
-          <TabsContent value="data" className="space-y-6">
+          <TabsContent value="data" className="space-y-6" forceMount style={{ display: activeTab === 'data' ? 'block' : 'none' }}>
             {/* Export Section */}
             <div className="card-stock-sage animate-fade-in">
               <h3 className="text-lg font-semibold text-heading mb-2">Export Data</h3>
