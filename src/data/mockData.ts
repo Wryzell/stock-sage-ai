@@ -88,10 +88,12 @@ export const historicalSalesData = [
 ];
 
 export const categoryDistribution = [
-  { category: 'Laptops', value: 35, count: 19 },
-  { category: 'Accessories', value: 25, count: 88 },
-  { category: 'Monitors', value: 15, count: 10 },
-  { category: 'Audio', value: 10, count: 11 },
-  { category: 'Storage', value: 10, count: 32 },
-  { category: 'Other', value: 5, count: 27 },
+  { category: 'Laptops', value: 25, count: 19 },
+  { category: 'Computer Accessories', value: 20, count: 88 },
+  { category: 'Computer Parts', value: 18, count: 45 },
+  { category: 'Monitors', value: 12, count: 10 },
+  { category: 'Printers', value: 8, count: 6 },
+  { category: 'Electronic Accessories', value: 7, count: 27 },
+  { category: 'Networking', value: 5, count: 11 },
+  { category: 'Audio', value: 5, count: 11 },
 ];
