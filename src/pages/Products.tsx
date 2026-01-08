@@ -26,15 +26,25 @@ export default function Products() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'add'>('view');
   
-  // Predefined categories
-  const predefinedCategories = ['Electronics', 'Beverages', 'Food', 'Clothing', 'Office Supplies', 'Hardware', 'General'];
+  // Predefined categories for Sumtech (Computer & Electronics)
+  const predefinedCategories = [
+    'Laptops',
+    'Monitors',
+    'Printers',
+    'Computer Parts',
+    'Computer Accessories',
+    'Electronic Accessories',
+    'Networking',
+    'Audio',
+    'Peripherals'
+  ];
 
   // Form state for add/edit
   const [formData, setFormData] = useState({
     sku: '',
     name: '',
     description: '',
-    category: 'General',
+    category: 'Computer Accessories',
     currentStock: 0,
     minStock: 0,
     costPrice: 0,
@@ -145,7 +155,7 @@ export default function Products() {
       sku: '',
       name: '',
       description: '',
-      category: 'General',
+      category: 'Computer Accessories',
       currentStock: 0,
       minStock: 10,
       costPrice: 0,
