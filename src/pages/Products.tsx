@@ -381,7 +381,7 @@ export default function Products() {
 
             {(dialogMode === 'edit' || dialogMode === 'add') && (
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="col-span-2">
                   <Label htmlFor="sku">SKU *</Label>
                   <Input 
                     id="sku" 
@@ -389,19 +389,6 @@ export default function Products() {
                     onChange={(e) => setFormData({...formData, sku: e.target.value})}
                     className="mt-1" 
                   />
-                </div>
-                <div>
-                  <Label htmlFor="category">Category *</Label>
-                  <Select value={formData.category} onValueChange={(val) => setFormData({...formData, category: val})}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {predefinedCategories.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="name">Product Name *</Label>
