@@ -250,18 +250,10 @@ export default function Products() {
               Manage your product inventory
             </p>
           </div>
-          <div className="flex gap-2">
-            {isAdmin && (
-              <Button variant="outline" className="gap-2">
-                <Upload size={18} />
-                Import CSV
-              </Button>
-            )}
-            <Button onClick={handleAddNew} className="gap-2">
-              <Plus size={18} />
-              Add Product
-            </Button>
-          </div>
+          <Button onClick={handleAddNew} className="gap-2">
+            <Plus size={18} />
+            Add Product
+          </Button>
         </div>
 
         {/* Filters */}
@@ -277,18 +269,6 @@ export default function Products() {
               />
             </div>
             <div className="flex gap-2">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-40">
-                  <Filter size={16} className="mr-2" />
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-36">
                   <SelectValue placeholder="Status" />
