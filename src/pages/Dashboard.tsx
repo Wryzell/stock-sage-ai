@@ -6,7 +6,7 @@ import { ForecastCard } from '@/components/ForecastCard';
 import { QuickActions } from '@/components/QuickActions';
 import { ForecastChart } from '@/components/ForecastChart';
 import { mockProducts, mockAlerts, mockUsers, mockSales } from '@/data/mockData';
-import { Package, Users, AlertTriangle, TrendingUp, ShoppingCart, ClipboardList } from 'lucide-react';
+import { Package, Users, AlertTriangle, TrendingUp, ShoppingCart } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -24,8 +24,6 @@ export default function Dashboard() {
     { product: 'Webcams', message: 'Stockout risk in 5 days based on current velocity', trend: 'down' as const },
     { product: 'Accessories', message: 'Steady demand pattern detected', trend: 'steady' as const },
   ];
-
-  const staffAssignedProducts = mockProducts.slice(0, 5);
 
   if (isAdmin) {
     return (
@@ -97,18 +95,12 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl font-bold text-heading">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Welcome, {user?.fullName}. Here are your assigned tasks.
+            Welcome, {user?.fullName}. Here's your overview.
           </p>
         </div>
 
         {/* Staff Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard
-            title="Assigned Products"
-            value={staffAssignedProducts.length}
-            subtitle="Products to manage"
-            icon={Package}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <StatCard
             title="Today's Sales"
             value={mockSales.filter(s => s.recordedBy === user?.id).length}
@@ -116,73 +108,15 @@ export default function Dashboard() {
             icon={ShoppingCart}
           />
           <StatCard
-            title="Pending Tasks"
-            value={3}
-            subtitle="Complete by end of day"
-            icon={ClipboardList}
+            title="Low Stock Alerts"
+            value={lowStockItems}
+            subtitle="Items need attention"
+            icon={AlertTriangle}
           />
         </div>
 
-        {/* Staff Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-4">My Assigned Products</h3>
-              <div className="overflow-x-auto">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Product Name</th>
-                      <th>Category</th>
-                      <th>Current Stock</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staffAssignedProducts.map((product) => (
-                      <tr key={product.id}>
-                        <td className="font-medium">{product.name}</td>
-                        <td>{product.category}</td>
-                        <td>{product.currentStock}</td>
-                        <td>
-                          <span className={`status-badge ${
-                            product.status === 'in_stock' ? 'status-success' :
-                            product.status === 'low_stock' ? 'status-warning' : 'status-danger'
-                          }`}>
-                            {product.status === 'in_stock' ? 'In Stock' :
-                             product.status === 'low_stock' ? 'Low Stock' : 'Out of Stock'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-4">Today's Tasks</h3>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-3 p-3 rounded-md bg-muted/50 border border-border">
-                  <div className="w-2 h-2 rounded-full bg-primary"></div>
-                  <span className="text-sm">Record sales transactions</span>
-                </li>
-                <li className="flex items-center gap-3 p-3 rounded-md bg-muted/50 border border-border">
-                  <div className="w-2 h-2 rounded-full bg-warning"></div>
-                  <span className="text-sm">Check inventory levels</span>
-                </li>
-                <li className="flex items-center gap-3 p-3 rounded-md bg-muted/50 border border-border">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
-                  <span className="text-sm">Print daily report</span>
-                </li>
-              </ul>
-            </div>
-
-            <AlertsTable alerts={mockAlerts.slice(0, 3)} />
-          </div>
-        </div>
+        {/* Alerts */}
+        <AlertsTable alerts={mockAlerts.slice(0, 5)} />
       </div>
     </Layout>
   );
