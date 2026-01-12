@@ -106,12 +106,14 @@ export default function Dashboard() {
             value={mockSales.filter(s => s.recordedBy === user?.id).length}
             subtitle="Transactions recorded"
             icon={ShoppingCart}
+            href="/sales"
           />
           <StatCard
             title="Low Stock Alerts"
             value={lowStockItems}
             subtitle="Items need attention"
             icon={AlertTriangle}
+            href="/products?filter=low_stock"
           />
         </div>
 
