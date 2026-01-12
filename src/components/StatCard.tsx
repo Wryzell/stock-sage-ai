@@ -1,4 +1,5 @@
 import { LucideIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface StatCardProps {
   title: string;
@@ -9,28 +10,41 @@ interface StatCardProps {
     value: number;
     isPositive: boolean;
   };
+  href?: string;
 }
 
-export function StatCard({ title, value, subtitle, icon: Icon, trend }: StatCardProps) {
+export function StatCard({ title, value, subtitle, icon: Icon, trend, href }: StatCardProps) {
+  const content = (
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <p className="text-2xl font-bold text-heading mt-1">{value}</p>
+        {subtitle && (
+          <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+        )}
+        {trend && (
+          <p className={`text-sm mt-1 ${trend.isPositive ? 'text-success' : 'text-danger'}`}>
+            {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}% vs last month
+          </p>
+        )}
+      </div>
+      <div className="w-10 h-10 rounded-md bg-primary-light flex items-center justify-center">
+        <Icon size={20} className="text-primary" />
+      </div>
+    </div>
+  );
+
+  if (href) {
+    return (
+      <Link to={href} className="stat-card animate-fade-in hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+        {content}
+      </Link>
+    );
+  }
+
   return (
     <div className="stat-card animate-fade-in">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-2xl font-bold text-heading mt-1">{value}</p>
-          {subtitle && (
-            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-          )}
-          {trend && (
-            <p className={`text-sm mt-1 ${trend.isPositive ? 'text-success' : 'text-danger'}`}>
-              {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}% vs last month
-            </p>
-          )}
-        </div>
-        <div className="w-10 h-10 rounded-md bg-primary-light flex items-center justify-center">
-          <Icon size={20} className="text-primary" />
-        </div>
-      </div>
+      {content}
     </div>
   );
 }
