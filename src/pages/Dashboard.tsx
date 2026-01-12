@@ -4,9 +4,8 @@ import { StatCard } from '@/components/StatCard';
 import { AlertsTable } from '@/components/AlertsTable';
 import { ForecastCard } from '@/components/ForecastCard';
 import { QuickActions } from '@/components/QuickActions';
-import { ForecastChart } from '@/components/ForecastChart';
 import { mockProducts, mockAlerts, mockUsers, mockSales } from '@/data/mockData';
-import { Package, Users, AlertTriangle, TrendingUp, ShoppingCart } from 'lucide-react';
+import { Users, AlertTriangle, TrendingUp, ShoppingCart } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -37,24 +36,20 @@ export default function Dashboard() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              title="Total Products"
-              value={totalProducts}
-              subtitle={`${mockProducts.filter(p => p.status === 'in_stock').length} in stock`}
-              icon={Package}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard
               title="Active Staff"
               value={`${activeStaff} users`}
               subtitle="Online now: 2"
               icon={Users}
+              href="/settings"
             />
             <StatCard
               title="Low Stock Items"
               value={lowStockItems}
               subtitle="Requires attention"
               icon={AlertTriangle}
+              href="/products?filter=low_stock"
             />
             <StatCard
               title="Today's Sales"
@@ -62,6 +57,7 @@ export default function Dashboard() {
               subtitle={`${mockSales.filter(s => s.saleDate === '2024-12-29').length} transactions`}
               icon={TrendingUp}
               trend={{ value: 12, isPositive: true }}
+              href="/sales"
             />
           </div>
 
@@ -75,14 +71,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <ForecastChart />
-            </div>
-            <div>
-              <QuickActions isAdmin={isAdmin} />
-            </div>
-          </div>
+          <QuickActions isAdmin={isAdmin} />
         </div>
       </Layout>
     );
