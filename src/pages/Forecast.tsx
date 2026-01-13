@@ -7,62 +7,67 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight, Sparkles, Package, Target, ShoppingCart } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight, Code, Package, Target, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-
-interface ForecastResult {
-  productName: string;
-  predictedDemand: number;
-  confidenceLevel: number;
-  trend: 'increasing' | 'stable' | 'decreasing';
-  recommendation: string;
-  stockoutRisk: 'low' | 'medium' | 'high';
-  suggestedReorderQty: number;
-}
-
-interface Insight {
-  type: 'warning' | 'opportunity' | 'info';
-  title: string;
-  description: string;
-}
-
-interface ForecastData {
-  forecasts: ForecastResult[];
-  insights: Insight[];
-  summary: string;
-}
+import { generateForecasts, type ForecastData, type ForecastResult } from '@/lib/forecasting';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function Forecast() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   
   const [dateRange, setDateRange] = useState('30');
-  const algorithm = 'exponential_smoothing';
-  // Removed confidence filter - show all predictions
   const [isGenerating, setIsGenerating] = useState(false);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<ForecastResult | null>(null);
+  const [showAlgorithm, setShowAlgorithm] = useState(false);
 
   const handleGenerateForecast = async () => {
     setIsGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-forecast', {
-        body: {
-          algorithm,
-          forecastDays: parseInt(dateRange),
-        },
-      });
+      // Fetch sales data from database
+      const { data: salesData, error: salesError } = await supabase
+        .from('sales')
+        .select('*, products(id, name, category, current_stock, min_stock)')
+        .order('sale_date', { ascending: false })
+        .limit(100);
 
-      if (error) throw error;
+      if (salesError) throw salesError;
 
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
+      // Fetch all products
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, category, current_stock, min_stock');
 
-      setForecastData(data);
-      toast.success('AI Forecast generated successfully');
+      if (productsError) throw productsError;
+
+      // Transform data for forecasting engine
+      const transformedSales = (salesData || []).map(sale => ({
+        productId: sale.product_id,
+        productName: sale.products?.name || 'Unknown',
+        category: sale.products?.category || 'Uncategorized',
+        quantity: sale.quantity,
+        total: sale.total,
+        date: sale.sale_date,
+        currentStock: sale.products?.current_stock || 0,
+        minStock: sale.products?.min_stock || 0
+      }));
+
+      const transformedProducts = (products || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        currentStock: p.current_stock,
+        minStock: p.min_stock
+      }));
+
+      // Run pure JavaScript forecasting algorithm
+      const forecastDays = parseInt(dateRange);
+      const result = generateForecasts(transformedSales, transformedProducts, forecastDays);
+      
+      setForecastData(result);
+      toast.success('Forecast generated using JavaScript algorithms');
     } catch (error: unknown) {
       console.error('Forecast error:', error);
       const message = error instanceof Error ? error.message : 'Failed to generate forecast';
@@ -140,11 +145,11 @@ export default function Forecast() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-heading flex items-center gap-2">
-              <Sparkles size={24} className="text-primary" />
-              AI Demand Forecast
+              <Code size={24} className="text-primary" />
+              JavaScript Demand Forecast
             </h1>
             <p className="text-muted-foreground mt-1">
-              Predict future product demand using AI analysis
+              Pure JavaScript algorithms - No external AI APIs
             </p>
           </div>
           {isAdmin && forecastData && (
@@ -167,7 +172,7 @@ export default function Forecast() {
             <div className="flex-1">
               <h2 className="text-base font-semibold text-heading mb-1">Generate New Forecast</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Analyze your sales data to predict demand for the next period
+                Analyze your sales data using exponential smoothing algorithm
               </p>
               
               <div className="flex flex-wrap items-end gap-4">
@@ -189,7 +194,7 @@ export default function Forecast() {
                   {isGenerating ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Analyzing...
+                      Calculating...
                     </>
                   ) : (
                     <>
@@ -203,7 +208,32 @@ export default function Forecast() {
           </div>
         </div>
 
-        {/* AI Summary - Prominent when available */}
+        {/* Algorithm Code Display */}
+        {forecastData?.algorithmCode && (
+          <Collapsible open={showAlgorithm} onOpenChange={setShowAlgorithm}>
+            <div className="card-stock-sage animate-fade-in">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full flex items-center justify-between p-0 h-auto hover:bg-transparent">
+                  <div className="flex items-center gap-2">
+                    <Code size={18} className="text-primary" />
+                    <span className="font-semibold text-heading">View Algorithm Code</span>
+                  </div>
+                  <ChevronRight size={18} className={`text-muted-foreground transition-transform ${showAlgorithm ? 'rotate-90' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-4">
+                <pre className="bg-muted p-4 rounded-lg overflow-x-auto text-sm font-mono text-foreground">
+                  <code>{forecastData.algorithmCode}</code>
+                </pre>
+                <p className="text-xs text-muted-foreground mt-3">
+                  This forecast uses <strong>Exponential Smoothing</strong> with α=0.3, combined with linear regression for trend analysis and coefficient of variation for confidence scoring.
+                </p>
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
+        )}
+
+        {/* Summary */}
         {forecastData?.summary && (
           <div className="card-stock-sage animate-fade-in border-l-4 border-l-primary">
             <div className="flex items-start gap-3">
@@ -218,7 +248,7 @@ export default function Forecast() {
           </div>
         )}
 
-        {/* AI Insights - Right after summary */}
+        {/* Insights */}
         {forecastData?.insights && forecastData.insights.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
             {forecastData.insights.map((insight, index) => (
@@ -352,9 +382,15 @@ export default function Forecast() {
                 {/* Recommendation */}
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-md">
                   <p className="text-xs font-medium text-primary mb-2 uppercase tracking-wide">
-                    AI Recommendation
+                    Algorithm Recommendation
                   </p>
                   <p className="text-foreground leading-relaxed">{selectedForecast.recommendation}</p>
+                </div>
+
+                {/* Algorithm Info */}
+                <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-md">
+                  <p className="font-medium mb-1">Calculation Method:</p>
+                  <p>Exponential Smoothing (α=0.3) + Linear Regression Trend Analysis</p>
                 </div>
               </div>
             )}
