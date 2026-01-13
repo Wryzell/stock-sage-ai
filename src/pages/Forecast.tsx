@@ -130,11 +130,7 @@ export default function Forecast() {
               <Sparkles size={24} className="text-primary" />
               AI Demand Forecast
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Predict future product demand using AI analysis
-            </p>
           </div>
-          {isAdmin && forecastData}
         </div>
 
         {/* Quick Start / Generate Section */}
