@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Printer, Calendar, BarChart3, TrendingUp, Users, DollarSign, Loader2 } from 'lucide-react';
+import { FileText, Download, Printer, Calendar, BarChart3, TrendingUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subDays, subMonths } from 'date-fns';
@@ -52,9 +52,6 @@ const reportTypes: ReportType[] = [
   { id: 'monthly', name: 'Monthly Income Report', description: 'Monthly revenue summary', icon: BarChart3 },
   { id: 'inventory', name: 'Inventory Summary', description: 'Current stock levels and valuation', icon: BarChart3 },
   { id: 'sales', name: 'Sales Analysis', description: 'Sales performance and trends', icon: TrendingUp },
-  { id: 'forecast', name: 'Forecast Accuracy', description: 'AI prediction accuracy metrics', icon: BarChart3, adminOnly: true },
-  { id: 'staff', name: 'Staff Activity', description: 'User actions and transactions', icon: Users, adminOnly: true },
-  { id: 'financial', name: 'Financial Summary', description: 'Revenue, costs, and margins', icon: DollarSign, adminOnly: true },
 ];
 
 export default function Reports() {
