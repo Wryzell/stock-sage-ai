@@ -5,20 +5,62 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { User, Lock, Bell, Clock } from 'lucide-react';
+import { User, Lock, Bell, Clock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleSave = () => {
     setIsEditing(false);
     toast.success('Profile updated successfully');
   };
 
-  const handleChangePassword = () => {
-    toast.success('Password change request sent to your email');
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Password updated successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to change password');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   return (
@@ -93,22 +135,37 @@ export default function Profile() {
             <h3 className="text-lg font-semibold text-heading">Change Password</h3>
           </div>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Current Password</Label>
-              <Input type="password" placeholder="Enter current password" />
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>New Password</Label>
-                <Input type="password" placeholder="Enter new password" />
+                <Input 
+                  type="password" 
+                  placeholder="Enter new password (min 6 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={changingPassword}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Confirm New Password</Label>
-                <Input type="password" placeholder="Confirm new password" />
+                <Input 
+                  type="password" 
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={changingPassword}
+                />
               </div>
             </div>
-            <Button onClick={handleChangePassword}>
-              Update Password
+            <Button onClick={handleChangePassword} disabled={changingPassword}>
+              {changingPassword ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Password'
+              )}
             </Button>
           </div>
         </div>

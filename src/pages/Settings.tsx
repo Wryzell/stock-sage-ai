@@ -1,18 +1,18 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { mockUsers } from '@/data/mockData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Users, Bell, Shield, Database, Brain, Plus, Edit2, Trash2, FileSpreadsheet, Upload, Download, Loader2, Package, ShoppingCart, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Bell, Shield, Database, Brain, FileSpreadsheet, Upload, Download, Loader2, Package, ShoppingCart, TrendingUp, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
+import { UserManagement } from '@/components/UserManagement';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -25,8 +25,6 @@ export default function Settings() {
   if (user?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
-
-  const staffUsers = mockUsers.filter(u => u.role === 'staff');
 
   // Export functions
   const exportProducts = async () => {
@@ -401,56 +399,7 @@ export default function Settings() {
 
           {/* User Management */}
           <TabsContent value="users" className="space-y-6">
-            <div className="card-stock-sage animate-fade-in">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-heading">Staff Users</h3>
-                <Button className="gap-2" onClick={() => toast.info('Add user dialog would open')}>
-                  <Plus size={18} />
-                  Add Staff User
-                </Button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Status</th>
-                      <th>Last Login</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staffUsers.map((staffUser) => (
-                      <tr key={staffUser.id}>
-                        <td className="font-medium">{staffUser.fullName}</td>
-                        <td>{staffUser.email}</td>
-                        <td>
-                          <span className={`status-badge ${
-                            staffUser.status === 'active' ? 'status-success' : 'status-danger'
-                          }`}>
-                            {staffUser.status}
-                          </span>
-                        </td>
-                        <td className="text-muted-foreground">
-                          {new Date(staffUser.lastLogin).toLocaleString()}
-                        </td>
-                        <td>
-                          <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Edit2 size={16} />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-danger hover:text-danger">
-                              <Trash2 size={16} />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <UserManagement />
           </TabsContent>
 
           {/* Notifications */}
