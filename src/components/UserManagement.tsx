@@ -14,15 +14,18 @@ interface Profile {
   user_id: string;
   full_name: string | null;
   email: string | null;
-  role: string | null;
   status: string | null;
   last_login: string | null;
   created_at: string;
 }
 
+interface UserWithRole extends Profile {
+  role: string | null;
+}
+
 export function UserManagement() {
   const { session } = useAuth();
-  const [users, setUsers] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,17 +38,39 @@ export function UserManagement() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch profiles
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) {
-      console.error('Error fetching users:', error);
+    if (profilesError) {
+      console.error('Error fetching users:', profilesError);
       toast.error('Failed to load users');
-    } else {
-      setUsers(data || []);
+      setLoading(false);
+      return;
     }
+
+    // Fetch roles from user_roles table
+    const { data: roles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+    
+    if (rolesError) {
+      console.error('Error fetching roles:', rolesError);
+    }
+
+    // Merge profiles with roles
+    const usersWithRoles: UserWithRole[] = (profiles || []).map(profile => {
+      const userRole = roles?.find(r => r.user_id === profile.user_id);
+      return {
+        ...profile,
+        role: userRole?.role || 'staff'
+      };
+    });
+
+    setUsers(usersWithRoles);
     setLoading(false);
   };
 
