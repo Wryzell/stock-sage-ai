@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { ForecastChart } from '@/components/ForecastChart';
@@ -10,55 +10,77 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight, Sparkles, Package, Target, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-interface ForecastResult {
-  productName: string;
-  predictedDemand: number;
-  confidenceLevel: number;
-  trend: 'increasing' | 'stable' | 'decreasing';
-  recommendation: string;
-  stockoutRisk: 'low' | 'medium' | 'high';
-  suggestedReorderQty: number;
-}
-interface Insight {
-  type: 'warning' | 'opportunity' | 'info';
-  title: string;
-  description: string;
-}
-interface ForecastData {
-  forecasts: ForecastResult[];
-  insights: Insight[];
-  summary: string;
-}
+import { generateForecasts, ForecastData, ForecastResult, SalesDataPoint, ProductData } from '@/lib/forecasting';
+
 export default function Forecast() {
   const {
     user
   } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [dateRange, setDateRange] = useState('30');
-  const algorithm = 'exponential_smoothing';
-  // Removed confidence filter - show all predictions
   const [isGenerating, setIsGenerating] = useState(false);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<ForecastResult | null>(null);
+
   const handleGenerateForecast = async () => {
     setIsGenerating(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('ai-forecast', {
-        body: {
-          algorithm,
-          forecastDays: parseInt(dateRange)
-        }
-      });
-      if (error) throw error;
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-      setForecastData(data);
-      toast.success('AI Forecast generated successfully');
+      // Fetch sales data with product info
+      const { data: salesData, error: salesError } = await supabase
+        .from('sales')
+        .select(`
+          id,
+          quantity,
+          total,
+          sale_date,
+          product_id,
+          products (
+            id,
+            name,
+            category,
+            current_stock,
+            min_stock
+          )
+        `)
+        .order('sale_date', { ascending: true });
+
+      if (salesError) throw salesError;
+
+      // Fetch all products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, category, current_stock, min_stock');
+
+      if (productsError) throw productsError;
+
+      // Transform data for forecasting engine
+      const formattedSales: SalesDataPoint[] = (salesData || [])
+        .filter(sale => sale.products)
+        .map(sale => ({
+          productId: sale.product_id,
+          productName: (sale.products as any).name,
+          category: (sale.products as any).category,
+          quantity: sale.quantity,
+          total: Number(sale.total),
+          date: sale.sale_date,
+          currentStock: (sale.products as any).current_stock,
+          minStock: (sale.products as any).min_stock
+        }));
+
+      const formattedProducts: ProductData[] = (productsData || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        currentStock: p.current_stock,
+        minStock: p.min_stock
+      }));
+
+      // Generate forecasts using local JavaScript algorithm
+      const forecastDays = parseInt(dateRange);
+      const result = generateForecasts(formattedSales, formattedProducts, forecastDays);
+
+      setForecastData(result);
+      toast.success('Forecast generated successfully');
     } catch (error: unknown) {
       console.error('Forecast error:', error);
       const message = error instanceof Error ? error.message : 'Failed to generate forecast';
