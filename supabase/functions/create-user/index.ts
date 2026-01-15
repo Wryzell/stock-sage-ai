@@ -36,14 +36,15 @@ serve(async (req) => {
       });
     }
 
-    // Check if requesting user is admin
-    const { data: profile } = await supabase
-      .from('profiles')
+    // Check if requesting user is admin using user_roles table
+    const { data: userRole } = await supabase
+      .from('user_roles')
       .select('role')
       .eq('user_id', requestingUser.id)
-      .single();
+      .eq('role', 'admin')
+      .maybeSingle();
 
-    if (profile?.role !== 'admin') {
+    if (!userRole) {
       return new Response(JSON.stringify({ error: 'Only admins can create users' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
