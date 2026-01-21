@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Upload, Search, Filter, Loader2 } from 'lucide-react';
+import { Plus, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuditLog } from '@/hooks/useAuditLog';
 
 export default function Products() {
   const { user } = useAuth();
+  const { logAudit } = useAuditLog();
   const isAdmin = user?.role === 'admin';
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -136,6 +138,15 @@ export default function Products() {
 
         if (error) throw error;
 
+        // Log audit event
+        await logAudit({
+          actionType: 'delete',
+          entityType: 'product',
+          entityId: product.id,
+          entityName: product.name,
+          details: { sku: product.sku, category: product.category }
+        });
+
         setProducts(products.filter(p => p.id !== product.id));
         toast.success('Product deleted successfully');
       } catch (error: any) {
@@ -191,6 +202,15 @@ export default function Products() {
 
         if (error) throw error;
 
+        // Log audit event for create
+        await logAudit({
+          actionType: 'create',
+          entityType: 'product',
+          entityId: data?.id,
+          entityName: formData.name,
+          details: { sku: formData.sku, category: formData.category }
+        });
+
         toast.success('Product added successfully');
       } else if (dialogMode === 'edit' && selectedProduct) {
         const { error } = await supabase
@@ -208,6 +228,15 @@ export default function Products() {
           .eq('id', selectedProduct.id);
 
         if (error) throw error;
+
+        // Log audit event for update
+        await logAudit({
+          actionType: 'update',
+          entityType: 'product',
+          entityId: selectedProduct.id,
+          entityName: formData.name,
+          details: { sku: formData.sku, category: formData.category }
+        });
 
         toast.success('Product updated successfully');
       }
