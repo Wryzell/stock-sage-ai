@@ -23,6 +23,7 @@ export interface ProductData {
 }
 
 export interface ForecastResult {
+  productId: string;
   productName: string;
   predictedDemand: number;
   confidenceLevel: number;
@@ -30,6 +31,7 @@ export interface ForecastResult {
   recommendation: string;
   stockoutRisk: 'low' | 'medium' | 'high';
   suggestedReorderQty: number;
+  historicalData: { date: string; quantity: number }[];
 }
 
 export interface Insight {
@@ -241,27 +243,30 @@ export function generateForecasts(
   forecastDays: number = 30
 ): ForecastData {
   // Group sales by product
-  const salesByProduct = new Map<string, number[]>();
-  const productInfo = new Map<string, { name: string; currentStock: number; minStock: number }>();
+  const salesByProduct = new Map<string, { quantities: number[]; dates: string[] }>();
+  const productInfo = new Map<string, { id: string; name: string; currentStock: number; minStock: number }>();
 
   salesData.forEach(sale => {
     const key = sale.productName;
     if (!salesByProduct.has(key)) {
-      salesByProduct.set(key, []);
+      salesByProduct.set(key, { quantities: [], dates: [] });
       productInfo.set(key, {
+        id: sale.productId,
         name: sale.productName,
         currentStock: sale.currentStock,
         minStock: sale.minStock
       });
     }
-    salesByProduct.get(key)!.push(sale.quantity);
+    salesByProduct.get(key)!.quantities.push(sale.quantity);
+    salesByProduct.get(key)!.dates.push(sale.date);
   });
 
   // Add products with no sales
   products.forEach(product => {
     if (!salesByProduct.has(product.name)) {
-      salesByProduct.set(product.name, []);
+      salesByProduct.set(product.name, { quantities: [], dates: [] });
       productInfo.set(product.name, {
+        id: product.id,
         name: product.name,
         currentStock: product.currentStock,
         minStock: product.minStock
@@ -275,8 +280,9 @@ export function generateForecasts(
   let highRiskCount = 0;
   let increasingTrendCount = 0;
 
-  salesByProduct.forEach((quantities, productName) => {
+  salesByProduct.forEach((data, productName) => {
     const info = productInfo.get(productName)!;
+    const { quantities, dates } = data;
     
     // Apply exponential smoothing
     const { forecast: predictedDemand, trend } = exponentialSmoothing(quantities, 0.3, 1);
@@ -287,6 +293,12 @@ export function generateForecasts(
     const confidence = calculateConfidence(quantities);
     const stockoutRisk = assessStockoutRisk(info.currentStock, info.minStock, scaledDemand, forecastDays);
     const reorderQty = calculateReorderQuantity(info.currentStock, scaledDemand, info.minStock);
+
+    // Build historical data for chart
+    const historicalData = quantities.map((qty, idx) => ({
+      date: dates[idx] || new Date().toISOString(),
+      quantity: qty
+    }));
 
     // Generate recommendation
     let recommendation = '';
@@ -305,13 +317,15 @@ export function generateForecasts(
     }
 
     forecasts.push({
+      productId: info.id,
       productName,
       predictedDemand: scaledDemand,
       confidenceLevel: confidence,
       trend,
       recommendation,
       stockoutRisk,
-      suggestedReorderQty: reorderQty
+      suggestedReorderQty: reorderQty,
+      historicalData
     });
   });
 

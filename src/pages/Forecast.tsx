@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { ForecastChart } from '@/components/ForecastChart';
+import { ProductForecastChart } from '@/components/ProductForecastChart';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus, Download, RefreshCw, FileSpreadsheet, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight, Sparkles, Package, Target, ShoppingCart } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Loader2, AlertTriangle, Lightbulb, Info, ChevronRight, Sparkles, Package, Target, ShoppingCart, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { generateForecasts, ForecastData, ForecastResult, SalesDataPoint, ProductData } from '@/lib/forecasting';
@@ -279,9 +280,9 @@ export default function Forecast() {
             </div>}
         </div>
 
-        {/* Product Detail Dialog */}
+        {/* Product Detail Dialog with Chart */}
         <Dialog open={!!selectedForecast} onOpenChange={() => setSelectedForecast(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-lg">
                 <Package size={20} className="text-primary" />
@@ -289,6 +290,17 @@ export default function Forecast() {
               </DialogTitle>
             </DialogHeader>
             {selectedForecast && <div className="space-y-5">
+                {/* Product Forecast Chart */}
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <h4 className="text-sm font-medium text-heading mb-3">Sales History & Forecast</h4>
+                  <ProductForecastChart
+                    productName={selectedForecast.productName}
+                    historicalData={selectedForecast.historicalData || []}
+                    predictedDemand={selectedForecast.predictedDemand}
+                    forecastDays={parseInt(dateRange)}
+                  />
+                </div>
+
                 {/* Key Metrics */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-muted/50 rounded-md">

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Search, Edit2, Trash2, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuditLog } from '@/hooks/useAuditLog';
 
 interface Product {
   id: string;
@@ -20,6 +21,7 @@ interface Product {
 
 export default function Sales() {
   const { user } = useAuth();
+  const { logAudit } = useAuditLog();
   const isAdmin = user?.role === 'admin';
   
   const [sales, setSales] = useState<Sale[]>([]);
@@ -130,7 +132,7 @@ export default function Sales() {
     try {
       const total = product.selling_price * newSale.quantity;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('sales')
         .insert({
           product_id: newSale.productId,
@@ -138,9 +140,20 @@ export default function Sales() {
           unit_price: product.selling_price,
           total: total,
           recorded_by: user?.id || null,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Log audit event
+      await logAudit({
+        actionType: 'create',
+        entityType: 'sale',
+        entityId: data?.id,
+        entityName: product.name,
+        details: { quantity: newSale.quantity, total }
+      });
 
       setIsDialogOpen(false);
       toast.success('Sale recorded successfully');
@@ -163,6 +176,15 @@ export default function Sales() {
           .eq('id', sale.id);
 
         if (error) throw error;
+
+        // Log audit event
+        await logAudit({
+          actionType: 'delete',
+          entityType: 'sale',
+          entityId: sale.id,
+          entityName: sale.productName,
+          details: { quantity: sale.quantity, total: sale.total }
+        });
 
         setSales(sales.filter(s => s.id !== sale.id));
         toast.success('Transaction deleted');
