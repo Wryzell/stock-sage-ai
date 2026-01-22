@@ -525,32 +525,172 @@ export default function PricingIntelligence() {
                   </CardContent>
                 </Card>
 
-                {/* AI Recommendation */}
-                <Card className="border-l-4 border-l-primary">
-                  <CardContent className="pt-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Sparkles className="h-5 w-5 text-primary" />
+                {/* Unified AI Engine Panel */}
+                <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <div className="p-2 bg-primary rounded-lg">
+                          <Brain className="h-5 w-5 text-primary-foreground" />
+                        </div>
+                        <div>
+                          <span className="text-lg">AI Engine Analysis</span>
+                          <p className="text-xs text-muted-foreground font-normal mt-0.5">
+                            Integrated forecasting + elasticity + competitor intelligence
+                          </p>
+                        </div>
+                      </CardTitle>
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Live Analysis
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* AI Decision Summary */}
+                    <div className="p-4 bg-background rounded-lg border">
+                      <div className="flex items-start gap-3">
+                        <Lightbulb className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-heading text-sm mb-1">Strategic Recommendation</h4>
+                          <p className="text-muted-foreground text-sm leading-relaxed">
+                            {selectedAnalysis.pricing?.recommendation || 
+                             'Insufficient data. Add sales records or competitor prices to enable AI-powered insights.'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-heading mb-1">AI Recommendation</h3>
-                        <p className="text-muted-foreground text-sm">
-                          {selectedAnalysis.pricing?.recommendation || 
-                           'Not enough data. Add sales records or competitor prices for AI insights.'}
-                        </p>
-                        {selectedAnalysis.pricing && (
-                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              Elasticity: 
-                              <Badge variant="outline" className="ml-1">
+                    </div>
+
+                    {/* Three AI Modules Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* Demand Forecasting Module */}
+                      <div className="p-3 bg-background rounded-lg border">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
+                            <TrendingUp className="h-4 w-4 text-success" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium">Demand Forecast</p>
+                            <p className="text-[10px] text-muted-foreground">Exponential Smoothing</p>
+                          </div>
+                        </div>
+                        {selectedAnalysis.forecast ? (
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Predicted</span>
+                              <span className="text-sm font-bold">{selectedAnalysis.forecast.predictedDemand} units</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Trend</span>
+                              <div className="flex items-center gap-1">
+                                {selectedAnalysis.forecast.trend === 'increasing' && <ArrowUpRight className="h-3 w-3 text-success" />}
+                                {selectedAnalysis.forecast.trend === 'decreasing' && <ArrowDownRight className="h-3 w-3 text-destructive" />}
+                                {selectedAnalysis.forecast.trend === 'stable' && <Minus className="h-3 w-3 text-muted-foreground" />}
+                                <span className="text-xs capitalize">{selectedAnalysis.forecast.trend}</span>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Risk</span>
+                              <Badge 
+                                variant={selectedAnalysis.forecast.stockoutRisk === 'high' ? 'destructive' : 'secondary'}
+                                className="text-[10px] h-5"
+                              >
+                                {selectedAnalysis.forecast.stockoutRisk}
+                              </Badge>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No forecast data</p>
+                        )}
+                      </div>
+
+                      {/* Price Elasticity Module */}
+                      <div className="p-3 bg-background rounded-lg border">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <Activity className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium">Price Elasticity</p>
+                            <p className="text-[10px] text-muted-foreground">Midpoint Method</p>
+                          </div>
+                        </div>
+                        {selectedAnalysis.pricing ? (
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">PED</span>
+                              <span className="text-sm font-bold">{selectedAnalysis.pricing.elasticity.elasticity.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Type</span>
+                              <Badge variant="outline" className="text-[10px] h-5">
                                 {selectedAnalysis.pricing.elasticity.elasticityType.replace('_', ' ')}
                               </Badge>
-                            </span>
-                            <span>Confidence: {selectedAnalysis.pricing.elasticity.confidenceLevel}%</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Confidence</span>
+                              <span className="text-xs">{selectedAnalysis.pricing.elasticity.confidenceLevel}%</span>
+                            </div>
                           </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No pricing data</p>
+                        )}
+                      </div>
+
+                      {/* Competitor Intelligence Module */}
+                      <div className="p-3 bg-background rounded-lg border">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-warning/10 flex items-center justify-center">
+                            <Globe className="h-4 w-4 text-warning" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium">Market Intel</p>
+                            <p className="text-[10px] text-muted-foreground">Firecrawl Scraper</p>
+                          </div>
+                        </div>
+                        {selectedAnalysis.competitorPrices.length > 0 ? (
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-muted-foreground">Sources</span>
+                              <span className="text-sm font-bold">{selectedAnalysis.competitorPrices.length}</span>
+                            </div>
+                            {selectedAnalysis.competitorPrices.slice(0, 2).map(cp => {
+                              const diff = ((selectedAnalysis.product.sellingPrice - Number(cp.price)) / Number(cp.price)) * 100;
+                              return (
+                                <div key={cp.id} className="flex justify-between items-center">
+                                  <span className="text-xs text-muted-foreground truncate max-w-[60px]">{cp.competitor_name}</span>
+                                  <Badge 
+                                    variant={diff > 5 ? 'destructive' : diff < -5 ? 'default' : 'secondary'}
+                                    className="text-[10px] h-5"
+                                  >
+                                    {diff > 0 ? '+' : ''}{Math.round(diff)}%
+                                  </Badge>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No competitor data</p>
                         )}
                       </div>
                     </div>
+
+                    {/* Optimal Price Result */}
+                    {selectedAnalysis.pricing && (
+                      <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        <div className="flex items-center gap-2">
+                          <Target className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">AI Optimal Price</p>
+                            <p className="text-lg font-bold text-primary">{formatCurrency(selectedAnalysis.pricing.optimalPrice)}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Expected Revenue</p>
+                          <p className="text-lg font-bold">{formatCurrency(selectedAnalysis.pricing.expectedRevenue)}</p>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -720,55 +860,6 @@ export default function PricingIntelligence() {
                   </Card>
                 )}
 
-                {/* Demand Forecast */}
-                {selectedAnalysis.forecast && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4" />
-                        AI Demand Forecast
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="p-3 bg-muted/50 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Predicted Demand</p>
-                          <p className="text-xl font-bold">{selectedAnalysis.forecast.predictedDemand}</p>
-                          <p className="text-xs text-muted-foreground">units/30 days</p>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Trend</p>
-                          <div className="flex items-center gap-2">
-                            {selectedAnalysis.forecast.trend === 'increasing' && <TrendingUp className="h-5 w-5 text-success" />}
-                            {selectedAnalysis.forecast.trend === 'decreasing' && <TrendingDown className="h-5 w-5 text-destructive" />}
-                            {selectedAnalysis.forecast.trend === 'stable' && <Minus className="h-5 w-5 text-muted-foreground" />}
-                            <span className="font-medium capitalize">{selectedAnalysis.forecast.trend}</span>
-                          </div>
-                        </div>
-                        <div className="p-3 bg-muted/50 rounded-lg">
-                          <p className="text-xs text-muted-foreground">Stockout Risk</p>
-                          <Badge 
-                            variant={
-                              selectedAnalysis.forecast.stockoutRisk === 'high' ? 'destructive' : 
-                              selectedAnalysis.forecast.stockoutRisk === 'medium' ? 'outline' : 'secondary'
-                            }
-                            className="mt-1"
-                          >
-                            {selectedAnalysis.forecast.stockoutRisk.toUpperCase()}
-                          </Badge>
-                        </div>
-                      </div>
-                      {selectedAnalysis.forecast.recommendation && (
-                        <div className="mt-4 p-3 bg-primary/5 rounded-lg">
-                          <p className="text-sm text-muted-foreground">
-                            <Lightbulb className="h-4 w-4 inline mr-1 text-primary" />
-                            {selectedAnalysis.forecast.recommendation}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
               </>
             ) : (
               <Card className="h-[400px] flex items-center justify-center">
