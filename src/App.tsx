@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Forecast from "./pages/Forecast";
+import Pricing from "./pages/Pricing";
 import Sales from "./pages/Sales";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -43,6 +44,11 @@ function AppRoutes() {
       <Route path="/forecast" element={
         <ProtectedRoute>
           <Forecast />
+        </ProtectedRoute>
+      } />
+      <Route path="/pricing" element={
+        <ProtectedRoute>
+          <Pricing />
         </ProtectedRoute>
       } />
       <Route path="/sales" element={

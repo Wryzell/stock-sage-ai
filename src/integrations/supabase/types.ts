@@ -94,6 +94,50 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_prices: {
+        Row: {
+          competitor_name: string
+          created_at: string
+          id: string
+          price: number
+          product_id: string | null
+          product_name: string
+          recorded_at: string
+          recorded_by: string | null
+          source_url: string | null
+        }
+        Insert: {
+          competitor_name: string
+          created_at?: string
+          id?: string
+          price: number
+          product_id?: string | null
+          product_name: string
+          recorded_at?: string
+          recorded_by?: string | null
+          source_url?: string | null
+        }
+        Update: {
+          competitor_name?: string
+          created_at?: string
+          id?: string
+          price?: number
+          product_id?: string | null
+          product_name?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          source_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       forecasts: {
         Row: {
           actual_vs_predicted: number | null
@@ -134,6 +178,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "forecasts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_price: number
+          old_price: number
+          product_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_price: number
+          old_price: number
+          product_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_price?: number
+          old_price?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"

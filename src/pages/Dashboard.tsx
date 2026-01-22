@@ -5,7 +5,7 @@ import { AlertsTable } from '@/components/AlertsTable';
 import { ForecastCard } from '@/components/ForecastCard';
 import { QuickActions } from '@/components/QuickActions';
 import { mockProducts, mockAlerts, mockUsers, mockSales } from '@/data/mockData';
-import { Users, AlertTriangle, TrendingUp, ShoppingCart } from 'lucide-react';
+import { Users, AlertTriangle, TrendingUp, ShoppingCart, Calculator } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -36,7 +36,7 @@ export default function Dashboard() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard
               title="Active Staff"
               value={`${activeStaff} users`}
@@ -58,6 +58,13 @@ export default function Dashboard() {
               icon={TrendingUp}
               trend={{ value: 12, isPositive: true }}
               href="/sales"
+            />
+            <StatCard
+              title="Pricing Simulator"
+              value="Optimize"
+              subtitle="Price elasticity analysis"
+              icon={Calculator}
+              href="/pricing"
             />
           </div>
 
