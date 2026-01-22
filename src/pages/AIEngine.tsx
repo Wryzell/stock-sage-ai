@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { generateForecasts, ForecastResult } from '@/lib/forecasting';
-import { scrapeCompetitorPrices, saveScrapedPrices } from '@/lib/api/competitorScraper';
+import { scrapeCompetitorPrices, saveScrapedPrices, getProductsNeedingScrape, ScanMode } from '@/lib/api/competitorScraper';
 import { useAuth } from '@/contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import {
@@ -64,7 +64,7 @@ export default function AIEngine() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [scraping, setScraping] = useState(false);
-  const [scrapeProgress, setScrapeProgress] = useState('');
+  const [scrapeProgress, setScrapeProgress] = useState({ current: 0, total: 0, message: '' });
   const [hasGenerated, setHasGenerated] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -112,12 +112,13 @@ export default function AIEngine() {
     }
   };
 
-  const handleScrapeCompetitorPrices = async () => {
+  const handleScrapeCompetitorPrices = async (mode: ScanMode = 'quick') => {
     try {
       setScraping(true);
-      setScrapeProgress('Starting price scan...');
+      setScrapeProgress({ current: 0, total: 0, message: 'Checking for recent prices...' });
       
-      const productsToScrape = products.slice(0, 20).map(p => ({
+      // Get products based on scan mode
+      let productsToScrape = products.slice(0, mode === 'quick' ? 10 : 20).map(p => ({
         id: p.id,
         name: p.name,
         sku: p.sku,
@@ -125,12 +126,38 @@ export default function AIEngine() {
         sellingPrice: p.sellingPrice
       }));
       
-      setScrapeProgress(`Scanning ${productsToScrape.length} products across 3 competitors...`);
+      // For full scan, skip products with recent prices (last 24 hours)
+      if (mode === 'full') {
+        setScrapeProgress({ current: 0, total: 0, message: 'Checking cached prices...' });
+        const needsScrape = await getProductsNeedingScrape(productsToScrape, 24);
+        
+        if (needsScrape.length < productsToScrape.length) {
+          const skipped = productsToScrape.length - needsScrape.length;
+          toast.info(`Skipping ${skipped} products with recent prices`);
+          // Re-filter to match original structure
+          const needsScrapeIds = new Set(needsScrape.map(p => p.id));
+          productsToScrape = productsToScrape.filter(p => needsScrapeIds.has(p.id));
+        }
+      }
       
-      const result = await scrapeCompetitorPrices(productsToScrape);
+      if (productsToScrape.length === 0) {
+        toast.success('All products have recent competitor prices');
+        setScraping(false);
+        setScrapeProgress({ current: 0, total: 0, message: '' });
+        return;
+      }
       
-      if (result.success && result.data.length > 0) {
-        setScrapeProgress('Saving prices to database...');
+      const totalRequests = productsToScrape.length * 3; // 3 competitors
+      setScrapeProgress({ 
+        current: 0, 
+        total: productsToScrape.length, 
+        message: `Scanning ${productsToScrape.length} products across 3 competitors...` 
+      });
+      
+      const result = await scrapeCompetitorPrices(productsToScrape, undefined, mode);
+      
+      if (result.success && result.data && result.data.length > 0) {
+        setScrapeProgress({ current: productsToScrape.length, total: productsToScrape.length, message: 'Saving prices to database...' });
         const validPrices = result.data.filter(p => p.price && p.price > 0);
         
         if (validPrices.length > 0) {
@@ -141,7 +168,7 @@ export default function AIEngine() {
         const competitorRes = await supabase.from('competitor_prices').select('*').order('recorded_at', { ascending: false });
         setRealCompetitorPrices(competitorRes.data || []);
         
-        toast.success(`Found ${result.summary.successful} prices from ${result.summary.products} products`);
+        toast.success(`Found ${result.summary?.successful || 0} prices from ${result.summary?.products || 0} products`);
       } else {
         toast.info('No new prices found. Try again later.');
       }
@@ -149,7 +176,7 @@ export default function AIEngine() {
       toast.error('Failed to scan competitor prices');
     } finally {
       setScraping(false);
-      setScrapeProgress('');
+      setScrapeProgress({ current: 0, total: 0, message: '' });
     }
   };
 
@@ -528,25 +555,37 @@ export default function AIEngine() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {/* Refresh Market Prices Button */}
-            <Button 
-              onClick={handleScrapeCompetitorPrices} 
-              variant="outline" 
-              size="sm"
-              disabled={scraping}
-            >
-              {scraping ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Scanning...
-                </>
-              ) : (
-                <>
-                  <Wifi className="h-4 w-4 mr-2" />
-                  Refresh Market Prices
-                </>
-              )}
-            </Button>
+            {/* Scan Buttons */}
+            <div className="flex gap-1 border border-border rounded-md overflow-hidden">
+              <Button 
+                onClick={() => handleScrapeCompetitorPrices('quick')} 
+                variant="ghost" 
+                size="sm"
+                disabled={scraping}
+                className="rounded-none border-r border-border"
+              >
+                {scraping ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Scanning...
+                  </>
+                ) : (
+                  <>
+                    <Wifi className="h-4 w-4 mr-2" />
+                    Quick Scan (10)
+                  </>
+                )}
+              </Button>
+              <Button 
+                onClick={() => handleScrapeCompetitorPrices('full')} 
+                variant="ghost" 
+                size="sm"
+                disabled={scraping}
+                className="rounded-none"
+              >
+                Full Scan (20)
+              </Button>
+            </div>
             
             {hasGenerated && (
               <>
@@ -568,10 +607,29 @@ export default function AIEngine() {
         </div>
 
         {/* Scraping Progress */}
-        {scraping && scrapeProgress && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {scrapeProgress}
+        {scraping && scrapeProgress.message && (
+          <div className="space-y-2 bg-muted/50 p-4 rounded-lg border border-border">
+            <div className="flex items-center gap-2 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span>{scrapeProgress.message}</span>
+            </div>
+            {scrapeProgress.total > 0 && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Progress</span>
+                  <span>{scrapeProgress.current} / {scrapeProgress.total} products</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${(scrapeProgress.current / scrapeProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Estimated time: ~{Math.ceil((scrapeProgress.total - scrapeProgress.current) * 0.5)} min remaining
+                </p>
+              </div>
+            )}
           </div>
         )}
 

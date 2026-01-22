@@ -113,15 +113,10 @@ const SEARCH_TERM_MAP: Record<string, string> = {
 
 // Extract price from HTML content - improved accuracy
 function extractPrice(text: string): number | null {
-  // Look for prices with peso symbol or PHP prefix - these are most reliable
   const pricePatterns = [
-    // ₱ followed by price with comma separators
     /₱\s*(\d{1,3}(?:,\d{3})+(?:\.\d{2})?)/g,
-    // PHP followed by price
     /PHP\s*(\d{1,3}(?:,\d{3})+(?:\.\d{2})?)/gi,
-    // Price followed by .00 (common in PH retail)
     /(\d{1,3}(?:,\d{3})+)\.00/g,
-    // P followed by 4+ digit price (to avoid matching model numbers)
     /P\s*(\d{4,}(?:,\d{3})*(?:\.\d{2})?)/g,
   ];
 
@@ -132,7 +127,6 @@ function extractPrice(text: string): number | null {
     for (const match of matches) {
       const priceStr = match[1].replace(/,/g, '');
       const price = parseFloat(priceStr);
-      // Filter: realistic Philippine retail prices (₱500 to ₱200,000)
       if (price >= 500 && price <= 200000) {
         prices.push(price);
       }
@@ -143,20 +137,34 @@ function extractPrice(text: string): number | null {
     return null;
   }
 
-  // Return the lowest price found (usually the sale/promo price)
   return Math.min(...prices);
 }
 
-// Scrape Octagon PH
-async function scrapeOctagon(
+// Scrape a single competitor
+async function scrapeCompetitor(
+  competitor: string,
   productName: string,
   searchTerm: string,
   apiKey: string
 ): Promise<{ price: number | null; source: string; error?: string }> {
-  const url = `https://octagon.com.ph/catalogsearch/result/?q=${encodeURIComponent(searchTerm)}`;
+  let url: string;
+  
+  switch (competitor) {
+    case 'Octagon':
+      url = `https://octagon.com.ph/catalogsearch/result/?q=${encodeURIComponent(searchTerm)}`;
+      break;
+    case 'Villman':
+      url = `https://villman.com/search?q=${encodeURIComponent(searchTerm)}`;
+      break;
+    case 'PC Express':
+      url = `https://pcx.com.ph/search?q=${encodeURIComponent(searchTerm)}`;
+      break;
+    default:
+      return { price: null, source: '', error: 'Unknown competitor' };
+  }
 
   try {
-    console.log(`[Octagon] Searching: ${searchTerm}`);
+    console.log(`[${competitor}] Searching: ${searchTerm}`);
     
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -168,112 +176,67 @@ async function scrapeOctagon(
         url,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,
+        waitFor: 2000,
       }),
     });
 
     const data = await response.json();
     
     if (!response.ok || !data.success) {
-      console.error(`[Octagon] API error:`, data);
+      // Check for rate limit
+      if (response.status === 429 || (data.error && data.error.includes('rate'))) {
+        console.warn(`[${competitor}] Rate limited, skipping`);
+        return { price: null, source: url, error: 'Rate limited' };
+      }
+      console.error(`[${competitor}] API error:`, data);
       return { price: null, source: url, error: data.error || 'Failed to scrape' };
     }
 
     const markdown = data.data?.markdown || data.markdown || '';
     const price = extractPrice(markdown);
     
-    console.log(`[Octagon] Found price: ${price} for ${productName}`);
+    console.log(`[${competitor}] Found price: ${price} for ${productName}`);
     return { price, source: url };
   } catch (error) {
-    console.error(`[Octagon] Error:`, error);
+    console.error(`[${competitor}] Error:`, error);
     return { price: null, source: url, error: String(error) };
   }
 }
 
-// Scrape Villman
-async function scrapeVillman(
-  productName: string,
-  searchTerm: string,
+// Process a batch of products in parallel (one product per competitor at a time)
+async function processBatch(
+  batch: ProductToScrape[],
+  competitors: string[],
   apiKey: string
-): Promise<{ price: number | null; source: string; error?: string }> {
-  const url = `https://villman.com/search?q=${encodeURIComponent(searchTerm)}`;
-
-  try {
-    console.log(`[Villman] Searching: ${searchTerm}`);
+): Promise<ScrapedPrice[]> {
+  const results: ScrapedPrice[] = [];
+  
+  // For each product, scrape all competitors in parallel
+  const productPromises = batch.map(async (product) => {
+    const searchTerm = product.searchTerm || SEARCH_TERM_MAP[product.name] || product.name;
     
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown'],
-        onlyMainContent: true,
-        waitFor: 3000,
-      }),
+    // Scrape all 3 competitors for this product simultaneously
+    const competitorPromises = competitors.map(async (competitor) => {
+      const result = await scrapeCompetitor(competitor, product.name, searchTerm, apiKey);
+      return {
+        productId: product.id,
+        productName: product.name,
+        competitor,
+        price: result.price,
+        source: result.source,
+        error: result.error,
+      };
     });
-
-    const data = await response.json();
     
-    if (!response.ok || !data.success) {
-      console.error(`[Villman] API error:`, data);
-      return { price: null, source: url, error: data.error || 'Failed to scrape' };
-    }
-
-    const markdown = data.data?.markdown || data.markdown || '';
-    const price = extractPrice(markdown);
-    
-    console.log(`[Villman] Found price: ${price} for ${productName}`);
-    return { price, source: url };
-  } catch (error) {
-    console.error(`[Villman] Error:`, error);
-    return { price: null, source: url, error: String(error) };
+    return Promise.all(competitorPromises);
+  });
+  
+  const batchResults = await Promise.all(productPromises);
+  for (const productResults of batchResults) {
+    results.push(...productResults);
   }
-}
-
-// Scrape PC Express
-async function scrapePCExpress(
-  productName: string,
-  searchTerm: string,
-  apiKey: string
-): Promise<{ price: number | null; source: string; error?: string }> {
-  const url = `https://pcx.com.ph/search?q=${encodeURIComponent(searchTerm)}`;
-
-  try {
-    console.log(`[PC Express] Searching: ${searchTerm}`);
-    
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url,
-        formats: ['markdown'],
-        onlyMainContent: true,
-        waitFor: 3000,
-      }),
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok || !data.success) {
-      console.error(`[PC Express] API error:`, data);
-      return { price: null, source: url, error: data.error || 'Failed to scrape' };
-    }
-
-    const markdown = data.data?.markdown || data.markdown || '';
-    const price = extractPrice(markdown);
-    
-    console.log(`[PC Express] Found price: ${price} for ${productName}`);
-    return { price, source: url };
-  } catch (error) {
-    console.error(`[PC Express] Error:`, error);
-    return { price: null, source: url, error: String(error) };
-  }
+  
+  return results;
 }
 
 Deno.serve(async (req) => {
@@ -282,9 +245,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { products, competitors } = await req.json() as {
+    const { products, competitors, scanMode } = await req.json() as {
       products: ProductToScrape[];
       competitors?: string[];
+      scanMode?: 'quick' | 'full';
     };
 
     if (!products || products.length === 0) {
@@ -305,40 +269,26 @@ Deno.serve(async (req) => {
 
     const selectedCompetitors = competitors || ['Octagon', 'Villman', 'PC Express'];
     const results: ScrapedPrice[] = [];
+    
+    // Batch size: process 2 products at a time (6 API calls per batch)
+    // With 2s wait per request and parallel processing, this gives ~30 req/min
+    const BATCH_SIZE = 2;
+    const DELAY_BETWEEN_BATCHES = 8000; // 8 seconds between batches to stay under rate limit
 
-    console.log(`Starting scrape for ${products.length} products across ${selectedCompetitors.length} competitors`);
+    console.log(`Starting optimized scrape for ${products.length} products across ${selectedCompetitors.length} competitors`);
+    console.log(`Processing in batches of ${BATCH_SIZE} products`);
 
-    for (const product of products) {
-      const searchTerm = product.searchTerm || SEARCH_TERM_MAP[product.name] || product.name;
+    for (let i = 0; i < products.length; i += BATCH_SIZE) {
+      const batch = products.slice(i, i + BATCH_SIZE);
+      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(products.length / BATCH_SIZE)}`);
       
-      for (const competitor of selectedCompetitors) {
-        let result: { price: number | null; source: string; error?: string };
-        
-        switch (competitor) {
-          case 'Octagon':
-            result = await scrapeOctagon(product.name, searchTerm, apiKey);
-            break;
-          case 'Villman':
-            result = await scrapeVillman(product.name, searchTerm, apiKey);
-            break;
-          case 'PC Express':
-            result = await scrapePCExpress(product.name, searchTerm, apiKey);
-            break;
-          default:
-            result = { price: null, source: '', error: 'Unknown competitor' };
-        }
-
-        results.push({
-          productId: product.id,
-          productName: product.name,
-          competitor,
-          price: result.price,
-          source: result.source,
-          error: result.error,
-        });
-
-        // Rate limiting - wait between requests
-        await new Promise(resolve => setTimeout(resolve, 1500));
+      const batchResults = await processBatch(batch, selectedCompetitors, apiKey);
+      results.push(...batchResults);
+      
+      // Wait between batches to respect rate limits (except for last batch)
+      if (i + BATCH_SIZE < products.length) {
+        console.log(`Waiting ${DELAY_BETWEEN_BATCHES / 1000}s before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
       }
     }
 

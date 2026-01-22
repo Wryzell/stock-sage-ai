@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Sale } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Search, Edit2, Trash2, Eye, Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Plus, Search, Edit2, Trash2, Eye, Loader2, Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuditLog } from '@/hooks/useAuditLog';
+import { cn } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -38,6 +40,8 @@ export default function Sales() {
     productId: '',
     quantity: 1,
   });
+  const [productPopoverOpen, setProductPopoverOpen] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
 
   useEffect(() => {
     fetchSales();
@@ -98,6 +102,17 @@ export default function Sales() {
     s.productName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Filtered products for the searchable dropdown
+  const filteredProducts = useMemo(() => {
+    if (!productSearchQuery) return products;
+    const query = productSearchQuery.toLowerCase();
+    return products.filter(p => 
+      p.name.toLowerCase().includes(query)
+    );
+  }, [products, productSearchQuery]);
+
+  const selectedProduct = products.find(p => p.id === newSale.productId);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
@@ -109,6 +124,7 @@ export default function Sales() {
   const handleAddSale = () => {
     setDialogMode('add');
     setNewSale({ productId: '', quantity: 1 });
+    setProductSearchQuery('');
     setIsDialogOpen(true);
   };
 
@@ -339,21 +355,65 @@ export default function Sales() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Product</Label>
-                  <Select 
-                    value={newSale.productId} 
-                    onValueChange={(value) => setNewSale({ ...newSale, productId: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map(product => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - {formatCurrency(product.selling_price)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={productPopoverOpen} onOpenChange={setProductPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={productPopoverOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedProduct ? (
+                          <span className="truncate">
+                            {selectedProduct.name} - {formatCurrency(selectedProduct.selling_price)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Search products...</span>
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput 
+                          placeholder="Search by product name..." 
+                          value={productSearchQuery}
+                          onValueChange={setProductSearchQuery}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No products found.</CommandEmpty>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto">
+                            {filteredProducts.map(product => (
+                              <CommandItem
+                                key={product.id}
+                                value={product.id}
+                                onSelect={() => {
+                                  setNewSale({ ...newSale, productId: product.id });
+                                  setProductPopoverOpen(false);
+                                  setProductSearchQuery('');
+                                }}
+                                className="flex items-center justify-between"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Check
+                                    className={cn(
+                                      "h-4 w-4",
+                                      newSale.productId === product.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <span className="truncate max-w-[200px]">{product.name}</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm">
+                                  <span className="font-medium text-primary">{formatCurrency(product.selling_price)}</span>
+                                  <span className="text-muted-foreground">Stock: {product.current_stock}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
@@ -361,18 +421,22 @@ export default function Sales() {
                   <Input
                     type="number"
                     min={1}
+                    max={selectedProduct?.current_stock || 999}
                     value={newSale.quantity}
                     onChange={(e) => setNewSale({ ...newSale, quantity: parseInt(e.target.value) || 1 })}
                   />
+                  {selectedProduct && (
+                    <p className="text-xs text-muted-foreground">
+                      Available: {selectedProduct.current_stock} units
+                    </p>
+                  )}
                 </div>
 
-                {newSale.productId && (
+                {newSale.productId && selectedProduct && (
                   <div className="p-4 rounded-md bg-muted border border-border">
                     <p className="text-sm text-muted-foreground">Estimated Total</p>
                     <p className="text-xl font-bold text-primary">
-                      {formatCurrency(
-                        (products.find(p => p.id === newSale.productId)?.selling_price || 0) * newSale.quantity
-                      )}
+                      {formatCurrency(selectedProduct.selling_price * newSale.quantity)}
                     </p>
                   </div>
                 )}
