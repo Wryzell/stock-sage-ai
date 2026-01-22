@@ -7,9 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
-import Forecast from "./pages/Forecast";
-import Pricing from "./pages/Pricing";
-import PricingIntelligence from "./pages/PricingIntelligence";
+import AIEngine from "./pages/AIEngine";
 import Sales from "./pages/Sales";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -42,21 +40,15 @@ function AppRoutes() {
           <Products />
         </ProtectedRoute>
       } />
-      <Route path="/forecast" element={
+      <Route path="/ai" element={
         <ProtectedRoute>
-          <Forecast />
+          <AIEngine />
         </ProtectedRoute>
       } />
-      <Route path="/pricing" element={
-        <ProtectedRoute>
-          <Pricing />
-        </ProtectedRoute>
-      } />
-      <Route path="/pricing-intelligence" element={
-        <ProtectedRoute>
-          <PricingIntelligence />
-        </ProtectedRoute>
-      } />
+      {/* Redirect old routes to unified AI page */}
+      <Route path="/forecast" element={<Navigate to="/ai" replace />} />
+      <Route path="/pricing-intelligence" element={<Navigate to="/ai" replace />} />
+      <Route path="/pricing" element={<Navigate to="/ai" replace />} />
       <Route path="/sales" element={
         <ProtectedRoute>
           <Sales />
