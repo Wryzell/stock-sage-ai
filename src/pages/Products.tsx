@@ -66,6 +66,7 @@ export default function Products() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .is('deleted_at', null) // Only get non-deleted products
         .order('name');
 
       if (error) throw error;
@@ -129,11 +130,15 @@ export default function Products() {
   };
 
   const handleDelete = async (product: Product) => {
-    if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
+    if (confirm(`Are you sure you want to delete "${product.name}"? It will be moved to the recycle bin.`)) {
       try {
+        // Soft delete - set deleted_at timestamp
         const { error } = await supabase
           .from('products')
-          .delete()
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            deleted_by: user?.id || null
+          })
           .eq('id', product.id);
 
         if (error) throw error;
@@ -144,11 +149,11 @@ export default function Products() {
           entityType: 'product',
           entityId: product.id,
           entityName: product.name,
-          details: { sku: product.sku, category: product.category }
+          details: { sku: product.sku, category: product.category, moved_to: 'recycle_bin' }
         });
 
         setProducts(products.filter(p => p.id !== product.id));
-        toast.success('Product deleted successfully');
+        toast.success('Product moved to recycle bin');
       } catch (error: any) {
         console.error('Error deleting product:', error);
         toast.error('Failed to delete product');

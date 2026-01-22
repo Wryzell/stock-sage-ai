@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Users, Bell, Shield, Database, Brain, FileSpreadsheet, Upload, Download, Loader2, Package, ShoppingCart, TrendingUp, AlertTriangle, ClipboardList } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Bell, Shield, Database, Brain, FileSpreadsheet, Upload, Download, Loader2, Package, ShoppingCart, TrendingUp, AlertTriangle, ClipboardList, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 import { UserManagement } from '@/components/UserManagement';
 import { AuditLogs } from '@/components/AuditLogs';
+import { RecycleBin } from '@/components/RecycleBin';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -263,6 +264,10 @@ export default function Settings() {
             <TabsTrigger value="data" className="gap-2">
               <FileSpreadsheet size={16} />
               Import/Export
+            </TabsTrigger>
+            <TabsTrigger value="recycle" className="gap-2">
+              <Trash2 size={16} />
+              Recycle Bin
             </TabsTrigger>
             <TabsTrigger value="audit" className="gap-2">
               <ClipboardList size={16} />
@@ -596,7 +601,13 @@ export default function Settings() {
             </div>
           </TabsContent>
 
-          {/* Backup */}
+          {/* Recycle Bin */}
+          <TabsContent value="recycle" className="space-y-6">
+            <div className="card-stock-sage animate-fade-in">
+              <RecycleBin />
+            </div>
+          </TabsContent>
+
           {/* Audit Logs */}
           <TabsContent value="audit" className="space-y-6">
             <div className="card-stock-sage animate-fade-in">

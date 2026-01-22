@@ -53,6 +53,7 @@ export default function Sales() {
           *,
           products (name, selling_price)
         `)
+        .is('deleted_at', null) // Only get non-deleted sales
         .order('sale_date', { ascending: false });
 
       if (error) throw error;
@@ -82,6 +83,7 @@ export default function Sales() {
       const { data, error } = await supabase
         .from('products')
         .select('id, name, selling_price, current_stock')
+        .is('deleted_at', null) // Only get non-deleted products
         .gt('current_stock', 0)
         .order('name');
 
@@ -168,11 +170,15 @@ export default function Sales() {
   };
 
   const handleDeleteSale = async (sale: Sale) => {
-    if (confirm('Are you sure you want to delete this transaction?')) {
+    if (confirm('Are you sure you want to delete this transaction? It will be moved to the recycle bin.')) {
       try {
+        // Soft delete - set deleted_at timestamp
         const { error } = await supabase
           .from('sales')
-          .delete()
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            deleted_by: user?.id || null
+          })
           .eq('id', sale.id);
 
         if (error) throw error;
@@ -183,11 +189,11 @@ export default function Sales() {
           entityType: 'sale',
           entityId: sale.id,
           entityName: sale.productName,
-          details: { quantity: sale.quantity, total: sale.total }
+          details: { quantity: sale.quantity, total: sale.total, moved_to: 'recycle_bin' }
         });
 
         setSales(sales.filter(s => s.id !== sale.id));
-        toast.success('Transaction deleted');
+        toast.success('Transaction moved to recycle bin');
       } catch (error: any) {
         console.error('Error deleting sale:', error);
         toast.error('Failed to delete transaction');
