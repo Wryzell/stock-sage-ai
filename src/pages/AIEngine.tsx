@@ -233,26 +233,29 @@ export default function AIEngine() {
     let whenToBuy = '';
     let buyUrgency: 'urgent' | 'soon' | 'plan' | 'wait' = 'wait';
     
-    // Format weeks of stock for display
-    const formatWeeksOfStock = (weeks: number): string => {
-      if (weeks < 1) return 'less than 1 week';
-      if (weeks < 2) return '~1 week';
-      if (weeks >= 12) return '12+ weeks';
-      return `~${Math.round(weeks)} weeks`;
+    // Format stock duration for display - convert to days when less than 1 week
+    const formatStockDuration = (weeks: number): string => {
+      const days = Math.round(weeks * 7);
+      if (days <= 3) return `${days} days`;
+      if (days < 7) return `${days} days`;
+      if (weeks < 2) return '1 week';
+      if (weeks >= 12) return '3+ months';
+      if (weeks >= 4) return `${Math.round(weeks)} weeks`;
+      return `${Math.round(weeks)} weeks`;
     };
     
     if (weeksOfStock < 1 && monthlyDemand > 5) {
       buyUrgency = 'urgent';
-      whenToBuy = `Order now! Only ${formatWeeksOfStock(weeksOfStock)} of stock left. Reorder ${forecast.suggestedReorderQty} units.`;
+      whenToBuy = `⚠️ Running low! Only ${formatStockDuration(weeksOfStock)} left. Order ${forecast.suggestedReorderQty} units now.`;
     } else if (weeksOfStock < 2 && monthlyDemand > 3) {
       buyUrgency = 'soon';
-      whenToBuy = `Order soon. ${formatWeeksOfStock(weeksOfStock)} of stock remaining. Order ${forecast.suggestedReorderQty} units.`;
+      whenToBuy = `Order within the week. ${formatStockDuration(weeksOfStock)} of stock left. Need ${forecast.suggestedReorderQty} units.`;
     } else if (weeksOfStock < 4) {
       buyUrgency = 'plan';
-      whenToBuy = `Plan order. ${formatWeeksOfStock(weeksOfStock)} of stock remaining.`;
+      whenToBuy = `Schedule order. ${formatStockDuration(weeksOfStock)} of stock remaining.`;
     } else {
       buyUrgency = 'wait';
-      whenToBuy = `Stock OK. ${formatWeeksOfStock(weeksOfStock)} remaining.`;
+      whenToBuy = `No rush. ${formatStockDuration(weeksOfStock)} of stock on hand.`;
     }
     
     return {
