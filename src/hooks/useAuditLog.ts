@@ -1,8 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export type ActionType = 'create' | 'update' | 'delete' | 'view' | 'export' | 'import';
-export type EntityType = 'product' | 'sale' | 'forecast' | 'user' | 'supplier';
+export type ActionType = 'create' | 'update' | 'delete' | 'view' | 'export' | 'import' | 'restore' | 'permanent_delete' | 'empty_trash';
+export type EntityType = 'product' | 'sale' | 'forecast' | 'user' | 'supplier' | 'products' | 'sales';
 
 interface LogAuditParams {
   actionType: ActionType;

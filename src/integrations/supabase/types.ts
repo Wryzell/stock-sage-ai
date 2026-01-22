@@ -227,6 +227,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           current_stock: number
+          deleted_at: string | null
+          deleted_by: string | null
           description: string | null
           id: string
           min_stock: number
@@ -242,6 +244,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           current_stock?: number
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           id?: string
           min_stock?: number
@@ -257,6 +261,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           current_stock?: number
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           id?: string
           min_stock?: number
@@ -313,6 +319,8 @@ export type Database = {
         Row: {
           approved_by: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           product_id: string
           quantity: number
@@ -324,6 +332,8 @@ export type Database = {
         Insert: {
           approved_by?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           product_id: string
           quantity: number
@@ -335,6 +345,8 @@ export type Database = {
         Update: {
           approved_by?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           product_id?: string
           quantity?: number
