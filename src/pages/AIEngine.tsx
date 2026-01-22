@@ -61,7 +61,7 @@ interface IntegratedAnalysis {
   revenueImpact: number;
 }
 
-export default function PricingIntelligence() {
+export default function AIEngine() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -320,32 +320,45 @@ export default function PricingIntelligence() {
           <div>
             <h1 className="text-2xl font-bold text-heading flex items-center gap-2">
               <Brain className="h-7 w-7 text-primary" />
-              AI Pricing Intelligence
+              AI Engine
             </h1>
             <p className="text-muted-foreground mt-1">
-              Integrated demand forecasts, competitor intelligence, and optimal pricing
+              Unified demand forecasting, price optimization & competitor intelligence
             </p>
           </div>
-          {isAdmin && (
+          <div className="flex items-center gap-2">
             <Button 
-              onClick={handleScrapeCompetitorPrices} 
-              disabled={isScrapingPrices}
+              onClick={fetchAllData} 
+              disabled={loading}
               variant="outline"
+              size="sm"
               className="gap-2"
             >
-              {isScrapingPrices ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Scraping...
-                </>
-              ) : (
-                <>
-                  <Globe className="h-4 w-4" />
-                  Update Competitor Prices
-                </>
-              )}
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-          )}
+            {isAdmin && (
+              <Button 
+                onClick={handleScrapeCompetitorPrices} 
+                disabled={isScrapingPrices}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                {isScrapingPrices ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Scraping...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="h-4 w-4" />
+                    Update Prices
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Top Opportunities */}
