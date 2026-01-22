@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Forecast from "./pages/Forecast";
 import Pricing from "./pages/Pricing";
+import PricingIntelligence from "./pages/PricingIntelligence";
 import Sales from "./pages/Sales";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -49,6 +50,11 @@ function AppRoutes() {
       <Route path="/pricing" element={
         <ProtectedRoute>
           <Pricing />
+        </ProtectedRoute>
+      } />
+      <Route path="/pricing-intelligence" element={
+        <ProtectedRoute>
+          <PricingIntelligence />
         </ProtectedRoute>
       } />
       <Route path="/sales" element={

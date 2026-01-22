@@ -41,7 +41,7 @@ export function Layout({ children }: LayoutProps) {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'staff'] },
     { path: '/products', label: 'Products', icon: Package, roles: ['admin', 'staff'] },
     { path: '/forecast', label: 'Forecast', icon: TrendingUp, roles: ['admin', 'staff'] },
-    { path: '/pricing', label: 'Pricing', icon: Calculator, roles: ['admin', 'staff'] },
+    { path: '/pricing-intelligence', label: 'AI Pricing', icon: Calculator, roles: ['admin', 'staff'] },
     { path: '/sales', label: 'Sales', icon: ShoppingCart, roles: ['admin', 'staff'] },
     { path: '/reports', label: 'Reports', icon: FileText, roles: ['admin', 'staff'] },
     { path: '/settings', label: 'Settings', icon: Settings, roles: ['admin'] },
