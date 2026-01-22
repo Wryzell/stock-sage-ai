@@ -233,18 +233,26 @@ export default function AIEngine() {
     let whenToBuy = '';
     let buyUrgency: 'urgent' | 'soon' | 'plan' | 'wait' = 'wait';
     
+    // Format weeks of stock for display
+    const formatWeeksOfStock = (weeks: number): string => {
+      if (weeks < 1) return 'less than 1 week';
+      if (weeks < 2) return '~1 week';
+      if (weeks >= 12) return '12+ weeks';
+      return `~${Math.round(weeks)} weeks`;
+    };
+    
     if (weeksOfStock < 1 && monthlyDemand > 5) {
       buyUrgency = 'urgent';
-      whenToBuy = `Order now. ~${weeksOfStock.toFixed(1)} weeks of stock. Reorder ${forecast.suggestedReorderQty} units.`;
+      whenToBuy = `Order now! Only ${formatWeeksOfStock(weeksOfStock)} of stock left. Reorder ${forecast.suggestedReorderQty} units.`;
     } else if (weeksOfStock < 2 && monthlyDemand > 3) {
       buyUrgency = 'soon';
-      whenToBuy = `Order soon. ~${weeksOfStock.toFixed(1)} weeks of stock. Order ${forecast.suggestedReorderQty} units.`;
+      whenToBuy = `Order soon. ${formatWeeksOfStock(weeksOfStock)} of stock remaining. Order ${forecast.suggestedReorderQty} units.`;
     } else if (weeksOfStock < 4) {
       buyUrgency = 'plan';
-      whenToBuy = `Plan order. ~${weeksOfStock.toFixed(1)} weeks of stock remaining.`;
+      whenToBuy = `Plan order. ${formatWeeksOfStock(weeksOfStock)} of stock remaining.`;
     } else {
       buyUrgency = 'wait';
-      whenToBuy = `Stock OK. ~${Math.min(weeksOfStock, 12).toFixed(1)} weeks remaining.`;
+      whenToBuy = `Stock OK. ${formatWeeksOfStock(weeksOfStock)} remaining.`;
     }
     
     return {
