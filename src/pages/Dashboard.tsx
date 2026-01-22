@@ -1,28 +1,182 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { StatCard } from '@/components/StatCard';
 import { AlertsTable } from '@/components/AlertsTable';
 import { ForecastCard } from '@/components/ForecastCard';
 import { QuickActions } from '@/components/QuickActions';
-import { mockProducts, mockAlerts, mockUsers, mockSales } from '@/data/mockData';
-import { Users, AlertTriangle, TrendingUp, ShoppingCart, Calculator } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Users, AlertTriangle, TrendingUp, ShoppingCart, Calculator, Loader2, Brain } from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+
+interface DashboardStats {
+  activeStaff: number;
+  lowStockItems: number;
+  todaySales: number;
+  todayTransactions: number;
+}
+
+interface Alert {
+  id: string;
+  type: string;
+  productId: string;
+  productName: string;
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+  createdAt: string;
+}
+
+interface ForecastHighlight {
+  product: string;
+  message: string;
+  trend: 'up' | 'down' | 'steady';
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    activeStaff: 0,
+    lowStockItems: 0,
+    todaySales: 0,
+    todayTransactions: 0,
+  });
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [forecastHighlights, setForecastHighlights] = useState<ForecastHighlight[]>([]);
 
-  const totalProducts = mockProducts.length;
-  const lowStockItems = mockProducts.filter(p => p.status === 'low_stock' || p.status === 'out_of_stock').length;
-  const activeStaff = mockUsers.filter(u => u.role === 'staff' && u.status === 'active').length;
-  const todaySales = mockSales
-    .filter(s => s.saleDate === '2024-12-29')
-    .reduce((acc, s) => acc + s.total, 0);
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const forecastHighlights = [
-    { product: 'Laptops', message: '+25% demand expected in January (Back to School)', trend: 'up' as const },
-    { product: 'Webcams', message: 'Stockout risk in 5 days based on current velocity', trend: 'down' as const },
-    { product: 'Accessories', message: 'Steady demand pattern detected', trend: 'steady' as const },
-  ];
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      const today = new Date();
+      const todayStart = startOfDay(today).toISOString();
+      const todayEnd = endOfDay(today).toISOString();
+      
+      // Fetch all data in parallel
+      const [
+        profilesRes,
+        productsRes,
+        salesRes,
+        alertsRes,
+      ] = await Promise.all([
+        // Active staff count
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact' })
+          .eq('status', 'active')
+          .eq('role', 'staff'),
+        
+        // Products for low stock count
+        supabase
+          .from('products')
+          .select('id, current_stock, min_stock')
+          .is('deleted_at', null),
+        
+        // Today's sales
+        supabase
+          .from('sales')
+          .select('id, total')
+          .is('deleted_at', null)
+          .gte('sale_date', todayStart)
+          .lte('sale_date', todayEnd),
+        
+        // Recent alerts
+        supabase
+          .from('alerts')
+          .select('*')
+          .eq('is_resolved', false)
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ]);
+
+      // Calculate stats
+      const activeStaff = profilesRes.count || 0;
+      
+      const products = productsRes.data || [];
+      const lowStockItems = products.filter(p => p.current_stock <= p.min_stock).length;
+      
+      const sales = salesRes.data || [];
+      const todaySales = sales.reduce((sum, s) => sum + Number(s.total), 0);
+      const todayTransactions = sales.length;
+      
+      setStats({
+        activeStaff,
+        lowStockItems,
+        todaySales,
+        todayTransactions,
+      });
+      
+      // Map alerts
+      const mappedAlerts: Alert[] = (alertsRes.data || []).map(a => ({
+        id: a.id,
+        type: a.type,
+        productId: a.product_id || '',
+        productName: a.product_name,
+        message: a.message,
+        severity: a.severity as 'info' | 'warning' | 'critical',
+        createdAt: a.created_at,
+      }));
+      setAlerts(mappedAlerts);
+      
+      // Generate forecast highlights from alerts
+      const highlights: ForecastHighlight[] = [];
+      
+      const criticalAlerts = mappedAlerts.filter(a => a.severity === 'critical');
+      if (criticalAlerts.length > 0) {
+        highlights.push({
+          product: `${criticalAlerts.length} Products`,
+          message: 'Critical stock levels detected. Immediate reorder recommended.',
+          trend: 'down',
+        });
+      }
+      
+      const warningAlerts = mappedAlerts.filter(a => a.severity === 'warning');
+      if (warningAlerts.length > 0) {
+        highlights.push({
+          product: `${warningAlerts.length} Products`,
+          message: 'Stock running low. Plan reorders soon.',
+          trend: 'down',
+        });
+      }
+      
+      if (lowStockItems === 0) {
+        highlights.push({
+          product: 'Inventory',
+          message: 'All stock levels healthy. No immediate action needed.',
+          trend: 'steady',
+        });
+      }
+      
+      // Add a prompt to use AI Engine
+      highlights.push({
+        product: 'AI Engine',
+        message: 'Generate detailed demand forecasts with price intelligence.',
+        trend: 'up',
+      });
+      
+      setForecastHighlights(highlights);
+      
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   if (isAdmin) {
     return (
@@ -39,39 +193,38 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard
               title="Active Staff"
-              value={`${activeStaff} users`}
-              subtitle="Online now: 2"
+              value={`${stats.activeStaff} users`}
+              subtitle="Currently active"
               icon={Users}
               href="/settings"
             />
             <StatCard
               title="Low Stock Items"
-              value={lowStockItems}
+              value={stats.lowStockItems}
               subtitle="Requires attention"
               icon={AlertTriangle}
               href="/products?filter=low_stock"
             />
             <StatCard
               title="Today's Sales"
-              value={`₱${todaySales.toLocaleString()}`}
-              subtitle={`${mockSales.filter(s => s.saleDate === '2024-12-29').length} transactions`}
+              value={`₱${stats.todaySales.toLocaleString()}`}
+              subtitle={`${stats.todayTransactions} transactions`}
               icon={TrendingUp}
-              trend={{ value: 12, isPositive: true }}
               href="/sales"
             />
             <StatCard
-              title="Pricing Simulator"
-              value="Optimize"
-              subtitle="Price elasticity analysis"
-              icon={Calculator}
-              href="/pricing"
+              title="AI Forecasting"
+              value="Analyze"
+              subtitle="Demand predictions"
+              icon={Brain}
+              href="/ai"
             />
           </div>
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <AlertsTable alerts={mockAlerts.slice(0, 4)} />
+              <AlertsTable alerts={alerts} showResolveAction />
             </div>
             <div>
               <ForecastCard highlights={forecastHighlights} />
@@ -99,14 +252,14 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <StatCard
             title="Today's Sales"
-            value={mockSales.filter(s => s.recordedBy === user?.id).length}
-            subtitle="Transactions recorded"
+            value={`₱${stats.todaySales.toLocaleString()}`}
+            subtitle={`${stats.todayTransactions} transactions`}
             icon={ShoppingCart}
             href="/sales"
           />
           <StatCard
             title="Low Stock Alerts"
-            value={lowStockItems}
+            value={stats.lowStockItems}
             subtitle="Items need attention"
             icon={AlertTriangle}
             href="/products?filter=low_stock"
@@ -114,7 +267,7 @@ export default function Dashboard() {
         </div>
 
         {/* Alerts */}
-        <AlertsTable alerts={mockAlerts.slice(0, 5)} />
+        <AlertsTable alerts={alerts} />
       </div>
     </Layout>
   );

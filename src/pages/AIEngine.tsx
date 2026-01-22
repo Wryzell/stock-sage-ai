@@ -3,22 +3,28 @@ import { Layout } from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { generateForecasts, ForecastResult } from '@/lib/forecasting';
+import { scrapeCompetitorPrices, saveScrapedPrices } from '@/lib/api/competitorScraper';
+import { useAuth } from '@/contexts/AuthContext';
+import * as XLSX from 'xlsx';
 import {
   Brain, TrendingUp, TrendingDown, Loader2, Minus, RefreshCw,
-  Package, Zap, ArrowDown, ArrowUp, Info
+  Package, Zap, ArrowDown, ArrowUp, Info, Search, Download,
+  Wifi, WifiOff, AlertCircle, CheckCircle, Filter
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, ReferenceLine
+  ResponsiveContainer
 } from 'recharts';
 
 interface Product {
   id: string;
   name: string;
+  sku: string;
   category: string;
   sellingPrice: number;
   costPrice: number;
@@ -26,15 +32,16 @@ interface Product {
   minStock: number;
 }
 
-interface MockCompetitorData {
+interface CompetitorData {
   competitorName: string;
   price: number;
+  isReal: boolean;
 }
 
 interface ProductAnalysis {
   product: Product;
   forecast: ForecastResult;
-  competitors: MockCompetitorData[];
+  competitors: CompetitorData[];
   avgCompetitorPrice: number;
   priceDifference: number;
   priceAction: 'lower' | 'raise' | 'hold';
@@ -43,19 +50,27 @@ interface ProductAnalysis {
   buyUrgency: 'urgent' | 'soon' | 'plan' | 'wait';
   adjustedDemand: number;
   hasSalesHistory: boolean;
+  hasRealPrices: boolean;
 }
 
+type FilterType = 'all' | 'needs_action' | 'has_sales';
+
 export default function AIEngine() {
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [salesData, setSalesData] = useState<any[]>([]);
   const [realCompetitorPrices, setRealCompetitorPrices] = useState<any[]>([]);
   const [productAnalyses, setProductAnalyses] = useState<ProductAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeProgress, setScrapeProgress] = useState('');
   const [hasGenerated, setHasGenerated] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     fetchData();
@@ -78,6 +93,7 @@ export default function AIEngine() {
       const mappedProducts: Product[] = (productsRes.data || []).map(p => ({
         id: p.id,
         name: p.name,
+        sku: p.sku,
         category: p.category,
         sellingPrice: Number(p.selling_price),
         costPrice: Number(p.cost_price),
@@ -96,7 +112,48 @@ export default function AIEngine() {
     }
   };
 
-  const generateMockCompetitors = (product: Product): MockCompetitorData[] => {
+  const handleScrapeCompetitorPrices = async () => {
+    try {
+      setScraping(true);
+      setScrapeProgress('Starting price scan...');
+      
+      const productsToScrape = products.slice(0, 20).map(p => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        category: p.category,
+        sellingPrice: p.sellingPrice
+      }));
+      
+      setScrapeProgress(`Scanning ${productsToScrape.length} products across 3 competitors...`);
+      
+      const result = await scrapeCompetitorPrices(productsToScrape);
+      
+      if (result.success && result.data.length > 0) {
+        setScrapeProgress('Saving prices to database...');
+        const validPrices = result.data.filter(p => p.price && p.price > 0);
+        
+        if (validPrices.length > 0) {
+          await saveScrapedPrices(validPrices, user?.id);
+        }
+        
+        // Refresh competitor prices
+        const competitorRes = await supabase.from('competitor_prices').select('*').order('recorded_at', { ascending: false });
+        setRealCompetitorPrices(competitorRes.data || []);
+        
+        toast.success(`Found ${result.summary.successful} prices from ${result.summary.products} products`);
+      } else {
+        toast.info('No new prices found. Try again later.');
+      }
+    } catch (error: any) {
+      toast.error('Failed to scan competitor prices');
+    } finally {
+      setScraping(false);
+      setScrapeProgress('');
+    }
+  };
+
+  const generateMockCompetitors = (product: Product): CompetitorData[] => {
     const competitors = ['Octagon', 'Villman', 'PC Express'];
     const basePrice = product.sellingPrice;
     
@@ -106,6 +163,7 @@ export default function AIEngine() {
       return {
         competitorName: name,
         price: Math.max(competitorPrice, product.costPrice * 1.05),
+        isReal: false,
       };
     });
   };
@@ -113,19 +171,18 @@ export default function AIEngine() {
   const analyzeProduct = (
     product: Product, 
     forecast: ForecastResult,
-    competitors: MockCompetitorData[],
+    competitors: CompetitorData[],
     hasSalesHistory: boolean
   ): ProductAnalysis => {
     const avgCompetitorPrice = competitors.reduce((sum, c) => sum + c.price, 0) / competitors.length;
     const priceDifference = ((product.sellingPrice - avgCompetitorPrice) / avgCompetitorPrice) * 100;
+    const hasRealPrices = competitors.some(c => c.isReal);
     
     // Adjust demand based on price position (price intelligence)
     let adjustedDemand = forecast.predictedDemand;
     if (priceDifference > 0) {
-      // Higher price = lower demand (elasticity effect)
       adjustedDemand = Math.round(forecast.predictedDemand * (1 - priceDifference * 0.008));
     } else {
-      // Lower price = higher demand
       adjustedDemand = Math.round(forecast.predictedDemand * (1 + Math.abs(priceDifference) * 0.003));
     }
     adjustedDemand = Math.max(adjustedDemand, 1);
@@ -143,14 +200,12 @@ export default function AIEngine() {
       priceRecommendation = `Price is competitive. Maintain current pricing.`;
     }
     
-    // Smarter buy urgency - based on adjusted demand and stock ratio
     const monthlyDemand = adjustedDemand;
     const weeksOfStock = (product.currentStock / Math.max(1, monthlyDemand / 4));
     
     let whenToBuy = '';
     let buyUrgency: 'urgent' | 'soon' | 'plan' | 'wait' = 'wait';
     
-    // Only flag as urgent if stock is critically low relative to demand
     if (weeksOfStock < 1 && monthlyDemand > 5) {
       buyUrgency = 'urgent';
       whenToBuy = `Order now. ~${weeksOfStock.toFixed(1)} weeks of stock. Reorder ${forecast.suggestedReorderQty} units.`;
@@ -177,7 +232,76 @@ export default function AIEngine() {
       buyUrgency,
       adjustedDemand,
       hasSalesHistory,
+      hasRealPrices,
     };
+  };
+
+  const generateAlertsFromForecasts = async (analyses: ProductAnalysis[]) => {
+    try {
+      // Get existing unresolved alerts
+      const { data: existingAlerts } = await supabase
+        .from('alerts')
+        .select('product_id, type')
+        .eq('is_resolved', false);
+      
+      const existingAlertKeys = new Set(
+        (existingAlerts || []).map(a => `${a.product_id}-${a.type}`)
+      );
+      
+      const newAlerts: any[] = [];
+      
+      for (const analysis of analyses) {
+        if (!analysis.hasSalesHistory) continue;
+        
+        // Low stock alerts
+        if (analysis.buyUrgency === 'urgent') {
+          const key = `${analysis.product.id}-low_stock`;
+          if (!existingAlertKeys.has(key)) {
+            newAlerts.push({
+              product_id: analysis.product.id,
+              product_name: analysis.product.name,
+              type: 'low_stock',
+              severity: 'critical',
+              message: `Critical: Only ${analysis.product.currentStock} units left. Predicted demand: ${analysis.adjustedDemand}/month. Order ${analysis.forecast.suggestedReorderQty} units now.`,
+            });
+          }
+        } else if (analysis.buyUrgency === 'soon') {
+          const key = `${analysis.product.id}-stockout_risk`;
+          if (!existingAlertKeys.has(key)) {
+            newAlerts.push({
+              product_id: analysis.product.id,
+              product_name: analysis.product.name,
+              type: 'stockout_risk',
+              severity: 'warning',
+              message: `Stock running low. ${analysis.product.currentStock} units remaining. Consider ordering soon.`,
+            });
+          }
+        }
+        
+        // Pricing opportunity alerts
+        if (Math.abs(analysis.priceDifference) > 15) {
+          const key = `${analysis.product.id}-demand_surge`;
+          if (!existingAlertKeys.has(key)) {
+            newAlerts.push({
+              product_id: analysis.product.id,
+              product_name: analysis.product.name,
+              type: 'demand_surge',
+              severity: 'info',
+              message: analysis.priceDifference > 0 
+                ? `Price ${analysis.priceDifference.toFixed(0)}% above market. Consider lowering for better sales.`
+                : `Price ${Math.abs(analysis.priceDifference).toFixed(0)}% below market. Opportunity to increase margin.`,
+            });
+          }
+        }
+      }
+      
+      if (newAlerts.length > 0) {
+        await supabase.from('alerts').insert(newAlerts);
+        toast.success(`Generated ${newAlerts.length} new alerts`);
+      }
+    } catch (error) {
+      console.error('Failed to generate alerts:', error);
+    }
   };
 
   const generateForecast = async () => {
@@ -208,7 +332,6 @@ export default function AIEngine() {
 
       const forecasts = generateForecasts(formattedSales, formattedProducts, 30);
       
-      // Track which products have sales history
       const productsWithSales = new Set(salesData.map((s: any) => s.product_id));
       
       const analyses: ProductAnalysis[] = [];
@@ -216,12 +339,13 @@ export default function AIEngine() {
         const forecast = forecasts.forecasts.find(f => f.productName === product.name);
         if (forecast) {
           const realData = realCompetitorPrices.filter(c => c.product_id === product.id);
-          let competitors: MockCompetitorData[];
+          let competitors: CompetitorData[];
           
           if (realData.length > 0) {
             competitors = realData.map(c => ({
               competitorName: c.competitor_name,
               price: Number(c.price),
+              isReal: true,
             }));
           } else {
             competitors = generateMockCompetitors(product);
@@ -233,13 +357,18 @@ export default function AIEngine() {
       });
       
       // Sort by: products with sales first, then by urgency
-      setProductAnalyses(analyses.sort((a, b) => {
+      const sortedAnalyses = analyses.sort((a, b) => {
         if (a.hasSalesHistory !== b.hasSalesHistory) {
           return a.hasSalesHistory ? -1 : 1;
         }
         const urgencyOrder = { urgent: 0, soon: 1, plan: 2, wait: 3 };
         return urgencyOrder[a.buyUrgency] - urgencyOrder[b.buyUrgency];
-      }));
+      });
+      
+      setProductAnalyses(sortedAnalyses);
+      
+      // Auto-generate alerts
+      await generateAlertsFromForecasts(sortedAnalyses);
       
       setHasGenerated(true);
       toast.success('Forecast generated');
@@ -251,17 +380,44 @@ export default function AIEngine() {
     }
   };
 
+  const handleExportReport = () => {
+    const data = filteredAnalyses.map(a => ({
+      'Product': a.product.name,
+      'SKU': a.product.sku,
+      'Category': a.product.category,
+      'Current Stock': a.product.currentStock,
+      'Min Stock': a.product.minStock,
+      'Predicted Demand/Month': a.adjustedDemand,
+      'Trend': a.forecast.trend,
+      'Confidence %': a.forecast.confidenceLevel,
+      'Status': a.buyUrgency === 'urgent' ? 'Order Now' : a.buyUrgency === 'soon' ? 'Order Soon' : a.buyUrgency === 'plan' ? 'Plan' : 'OK',
+      'Reorder Qty': a.forecast.suggestedReorderQty,
+      'Your Price': a.product.sellingPrice,
+      'Market Avg': Math.round(a.avgCompetitorPrice),
+      'Price Difference %': a.priceDifference.toFixed(1),
+      'Price Action': a.priceAction,
+      'Has Sales History': a.hasSalesHistory ? 'Yes' : 'No',
+      'Has Real Prices': a.hasRealPrices ? 'Yes' : 'No',
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Forecasts');
+    
+    const date = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `forecast-report-${date}.xlsx`);
+    toast.success('Report exported');
+  };
+
   const selectedAnalysis = useMemo(() => {
     return productAnalyses.find(a => a.product.id === selectedProductId) || null;
   }, [productAnalyses, selectedProductId]);
 
-  // Generate chart data - always show something
   const chartData = useMemo(() => {
     if (!selectedAnalysis) return [];
     
     const productSales = salesData.filter((s: any) => s.product_id === selectedAnalysis.product.id);
     
-    // Group by week
     const weeklyData: { [key: string]: number } = {};
     productSales.forEach((s: any) => {
       const date = new Date(s.sale_date);
@@ -277,7 +433,6 @@ export default function AIEngine() {
 
     const result: { date: string; historical: number | null; predicted: number | null }[] = [];
     
-    // Add historical data if exists
     sortedWeeks.forEach(([date, qty]) => {
       result.push({
         date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -286,7 +441,6 @@ export default function AIEngine() {
       });
     });
 
-    // Generate prediction weeks (always show these)
     const lastDate = sortedWeeks.length > 0 
       ? new Date(sortedWeeks[sortedWeeks.length - 1][0]) 
       : new Date();
@@ -305,17 +459,49 @@ export default function AIEngine() {
     return result;
   }, [selectedAnalysis, salesData]);
 
+  // Filtered and searched analyses
+  const filteredAnalyses = useMemo(() => {
+    let result = productAnalyses;
+    
+    // Apply filter
+    if (filter === 'needs_action') {
+      result = result.filter(a => a.buyUrgency === 'urgent' || a.buyUrgency === 'soon' || Math.abs(a.priceDifference) > 10);
+    } else if (filter === 'has_sales') {
+      result = result.filter(a => a.hasSalesHistory);
+    }
+    
+    // Apply search
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(a => 
+        a.product.name.toLowerCase().includes(query) ||
+        a.product.category.toLowerCase().includes(query) ||
+        a.product.sku.toLowerCase().includes(query)
+      );
+    }
+    
+    return result;
+  }, [productAnalyses, filter, searchQuery]);
+
+  // Summary stats
+  const summaryStats = useMemo(() => {
+    const withSales = productAnalyses.filter(a => a.hasSalesHistory);
+    return {
+      total: productAnalyses.length,
+      withSales: withSales.length,
+      needsReorder: productAnalyses.filter(a => a.buyUrgency === 'urgent' || a.buyUrgency === 'soon').length,
+      pricingOpportunities: productAnalyses.filter(a => Math.abs(a.priceDifference) > 10).length,
+      healthy: productAnalyses.filter(a => a.buyUrgency === 'wait' && Math.abs(a.priceDifference) <= 10).length,
+      realPricesCount: realCompetitorPrices.length,
+    };
+  }, [productAnalyses, realCompetitorPrices]);
+
   const formatMoney = (n: number) => '₱' + n.toLocaleString();
 
   const handleProductClick = (productId: string) => {
     setSelectedProductId(productId);
     setDialogOpen(true);
   };
-
-  // Count products with actual sales
-  const productsWithSalesCount = useMemo(() => {
-    return productAnalyses.filter(a => a.hasSalesHistory).length;
-  }, [productAnalyses]);
 
   if (loading) {
     return (
@@ -331,7 +517,7 @@ export default function AIEngine() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-xl font-semibold flex items-center gap-2">
               <Brain className="h-5 w-5 text-primary" />
@@ -341,9 +527,33 @@ export default function AIEngine() {
               Predictions adjusted with competitor price intelligence
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {/* Refresh Market Prices Button */}
+            <Button 
+              onClick={handleScrapeCompetitorPrices} 
+              variant="outline" 
+              size="sm"
+              disabled={scraping}
+            >
+              {scraping ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <Wifi className="h-4 w-4 mr-2" />
+                  Refresh Market Prices
+                </>
+              )}
+            </Button>
+            
             {hasGenerated && (
               <>
+                <Button onClick={handleExportReport} variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
                 <Button onClick={() => setShowExplanation(true)} variant="ghost" size="sm">
                   <Info className="h-4 w-4 mr-1" />
                   How it works
@@ -355,6 +565,31 @@ export default function AIEngine() {
               </>
             )}
           </div>
+        </div>
+
+        {/* Scraping Progress */}
+        {scraping && scrapeProgress && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {scrapeProgress}
+          </div>
+        )}
+
+        {/* Market Data Status */}
+        <div className="flex items-center gap-4 text-sm">
+          <span className="flex items-center gap-1.5">
+            {summaryStats.realPricesCount > 0 ? (
+              <>
+                <Wifi className="h-4 w-4 text-primary" />
+                <span className="text-muted-foreground">{summaryStats.realPricesCount} real competitor prices</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">No market data - using estimates</span>
+              </>
+            )}
+          </span>
         </div>
 
         {/* Generate Button */}
@@ -386,13 +621,73 @@ export default function AIEngine() {
           </Card>
         )}
 
-        {/* Product List */}
+        {/* Results */}
         {hasGenerated && productAnalyses.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-4">
+            {/* Summary Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-destructive">{summaryStats.needsReorder}</div>
+                <div className="text-xs text-muted-foreground">Need Reorder</div>
+              </div>
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-primary">{summaryStats.pricingOpportunities}</div>
+                <div className="text-xs text-muted-foreground">Pricing Opportunities</div>
+              </div>
+              <div className="bg-muted border border-border rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold">{summaryStats.healthy}</div>
+                <div className="text-xs text-muted-foreground">Healthy</div>
+              </div>
+              <div className="bg-muted border border-border rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold">{summaryStats.withSales}</div>
+                <div className="text-xs text-muted-foreground">With Sales Data</div>
+              </div>
+            </div>
+
+            {/* Filters and Search */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant={filter === 'all' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setFilter('all')}
+                >
+                  All
+                </Button>
+                <Button 
+                  variant={filter === 'needs_action' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setFilter('needs_action')}
+                >
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Needs Action
+                </Button>
+                <Button 
+                  variant={filter === 'has_sales' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setFilter('has_sales')}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Has Sales
+                </Button>
+              </div>
+            </div>
+
+            {/* Results count */}
             <p className="text-sm text-muted-foreground">
-              {productsWithSalesCount} products with sales history • {productAnalyses.length} total
+              Showing {filteredAnalyses.length} of {productAnalyses.length} products
             </p>
             
+            {/* Product Table */}
             <div className="border border-border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
@@ -404,10 +699,11 @@ export default function AIEngine() {
                     <th className="text-center p-3 font-medium">Trend</th>
                     <th className="text-center p-3 font-medium">Status</th>
                     <th className="text-center p-3 font-medium">Price</th>
+                    <th className="text-center p-3 font-medium">Data</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {productAnalyses.map(analysis => (
+                  {filteredAnalyses.map(analysis => (
                     <tr 
                       key={analysis.product.id}
                       className={`hover:bg-muted/30 cursor-pointer transition-colors ${!analysis.hasSalesHistory ? 'opacity-60' : ''}`}
@@ -457,6 +753,15 @@ export default function AIEngine() {
                           <span className="text-muted-foreground text-xs">Hold</span>
                         )}
                       </td>
+                      <td className="p-3 text-center">
+                        <span title={analysis.hasRealPrices ? "Real competitor data" : "Estimated prices"}>
+                          {analysis.hasRealPrices ? (
+                            <Wifi className="h-3 w-3 text-primary inline" />
+                          ) : (
+                            <WifiOff className="h-3 w-3 text-muted-foreground inline" />
+                          )}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -476,6 +781,15 @@ export default function AIEngine() {
                     {selectedAnalysis.product.name}
                     {!selectedAnalysis.hasSalesHistory && (
                       <Badge variant="outline" className="text-xs ml-2">No sales history</Badge>
+                    )}
+                    {selectedAnalysis.hasRealPrices ? (
+                      <Badge variant="secondary" className="text-xs ml-2 flex items-center gap-1">
+                        <Wifi className="h-3 w-3" /> Real Prices
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs ml-2 flex items-center gap-1">
+                        <WifiOff className="h-3 w-3" /> Estimated
+                      </Badge>
                     )}
                   </DialogTitle>
                 </DialogHeader>
@@ -579,7 +893,8 @@ export default function AIEngine() {
                     <p className="text-sm text-muted-foreground">{selectedAnalysis.priceRecommendation}</p>
                     <div className="flex gap-2 mt-2 flex-wrap">
                       {selectedAnalysis.competitors.map((c, i) => (
-                        <span key={i} className="text-xs bg-muted px-2 py-1 rounded">
+                        <span key={i} className="text-xs bg-muted px-2 py-1 rounded flex items-center gap-1">
+                          {c.isReal ? <Wifi className="h-3 w-3 text-primary" /> : <WifiOff className="h-3 w-3 text-muted-foreground" />}
                           {c.competitorName}: {formatMoney(c.price)}
                         </span>
                       ))}
@@ -623,9 +938,13 @@ export default function AIEngine() {
               </div>
               
               <div>
-                <h4 className="font-medium mb-1">Example</h4>
+                <h4 className="font-medium mb-1">Real vs Estimated Prices</h4>
                 <p className="text-muted-foreground">
-                  If your GPU is priced 15% above market average, we reduce the demand forecast by ~12%. This prevents over-ordering stock that may not sell at your current price point.
+                  <Wifi className="h-3 w-3 text-primary inline mr-1" /> = Real scraped data from competitor websites<br/>
+                  <WifiOff className="h-3 w-3 text-muted-foreground inline mr-1" /> = Estimated based on typical market variance
+                </p>
+                <p className="text-muted-foreground mt-2">
+                  Click "Refresh Market Prices" to fetch real competitor data for more accurate predictions.
                 </p>
               </div>
               
