@@ -1,19 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { generateForecasts, ForecastData, ForecastResult } from '@/lib/forecasting';
+import { generateForecasts, ForecastResult } from '@/lib/forecasting';
 import {
   Brain, TrendingUp, TrendingDown, Loader2, Minus, RefreshCw,
-  Package, Zap, ArrowDown, ArrowUp
+  Package, Zap, ArrowDown, ArrowUp, Info
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer
+  ResponsiveContainer, ReferenceLine
 } from 'recharts';
 
 interface Product {
@@ -42,6 +42,7 @@ interface ProductAnalysis {
   whenToBuy: string;
   buyUrgency: 'urgent' | 'soon' | 'plan' | 'wait';
   adjustedDemand: number;
+  hasSalesHistory: boolean;
 }
 
 export default function AIEngine() {
@@ -54,6 +55,7 @@ export default function AIEngine() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -111,15 +113,19 @@ export default function AIEngine() {
   const analyzeProduct = (
     product: Product, 
     forecast: ForecastResult,
-    competitors: MockCompetitorData[]
+    competitors: MockCompetitorData[],
+    hasSalesHistory: boolean
   ): ProductAnalysis => {
     const avgCompetitorPrice = competitors.reduce((sum, c) => sum + c.price, 0) / competitors.length;
     const priceDifference = ((product.sellingPrice - avgCompetitorPrice) / avgCompetitorPrice) * 100;
     
+    // Adjust demand based on price position (price intelligence)
     let adjustedDemand = forecast.predictedDemand;
     if (priceDifference > 0) {
+      // Higher price = lower demand (elasticity effect)
       adjustedDemand = Math.round(forecast.predictedDemand * (1 - priceDifference * 0.008));
     } else {
+      // Lower price = higher demand
       adjustedDemand = Math.round(forecast.predictedDemand * (1 + Math.abs(priceDifference) * 0.003));
     }
     adjustedDemand = Math.max(adjustedDemand, 1);
@@ -137,22 +143,26 @@ export default function AIEngine() {
       priceRecommendation = `Price is competitive. Maintain current pricing.`;
     }
     
-    const daysOfStock = product.currentStock / Math.max(1, adjustedDemand / 30);
+    // Smarter buy urgency - based on adjusted demand and stock ratio
+    const monthlyDemand = adjustedDemand;
+    const weeksOfStock = (product.currentStock / Math.max(1, monthlyDemand / 4));
+    
     let whenToBuy = '';
     let buyUrgency: 'urgent' | 'soon' | 'plan' | 'wait' = 'wait';
     
-    if (product.currentStock <= product.minStock || daysOfStock < 7) {
+    // Only flag as urgent if stock is critically low relative to demand
+    if (weeksOfStock < 1 && monthlyDemand > 5) {
       buyUrgency = 'urgent';
-      whenToBuy = `Order immediately. ${product.currentStock} units left (~${Math.round(daysOfStock)} days). Reorder ${forecast.suggestedReorderQty} units.`;
-    } else if (daysOfStock < 14) {
+      whenToBuy = `Order now. ~${weeksOfStock.toFixed(1)} weeks of stock. Reorder ${forecast.suggestedReorderQty} units.`;
+    } else if (weeksOfStock < 2 && monthlyDemand > 3) {
       buyUrgency = 'soon';
-      whenToBuy = `Order within 3-5 days. Stock lasts ~${Math.round(daysOfStock)} days. Order ${forecast.suggestedReorderQty} units.`;
-    } else if (daysOfStock < 30) {
+      whenToBuy = `Order soon. ~${weeksOfStock.toFixed(1)} weeks of stock. Order ${forecast.suggestedReorderQty} units.`;
+    } else if (weeksOfStock < 4) {
       buyUrgency = 'plan';
-      whenToBuy = `Plan order in 2 weeks. Stock for ${Math.round(daysOfStock)} days. Order ${forecast.suggestedReorderQty} units.`;
+      whenToBuy = `Plan order. ~${weeksOfStock.toFixed(1)} weeks of stock remaining.`;
     } else {
       buyUrgency = 'wait';
-      whenToBuy = `Stock healthy (${Math.round(daysOfStock)} days). No immediate order needed.`;
+      whenToBuy = `Stock OK. ~${Math.min(weeksOfStock, 12).toFixed(1)} weeks remaining.`;
     }
     
     return {
@@ -166,6 +176,7 @@ export default function AIEngine() {
       whenToBuy,
       buyUrgency,
       adjustedDemand,
+      hasSalesHistory,
     };
   };
 
@@ -197,6 +208,9 @@ export default function AIEngine() {
 
       const forecasts = generateForecasts(formattedSales, formattedProducts, 30);
       
+      // Track which products have sales history
+      const productsWithSales = new Set(salesData.map((s: any) => s.product_id));
+      
       const analyses: ProductAnalysis[] = [];
       products.forEach(product => {
         const forecast = forecasts.forecasts.find(f => f.productName === product.name);
@@ -213,11 +227,16 @@ export default function AIEngine() {
             competitors = generateMockCompetitors(product);
           }
           
-          analyses.push(analyzeProduct(product, forecast, competitors));
+          const hasSalesHistory = productsWithSales.has(product.id);
+          analyses.push(analyzeProduct(product, forecast, competitors, hasSalesHistory));
         }
       });
       
+      // Sort by: products with sales first, then by urgency
       setProductAnalyses(analyses.sort((a, b) => {
+        if (a.hasSalesHistory !== b.hasSalesHistory) {
+          return a.hasSalesHistory ? -1 : 1;
+        }
         const urgencyOrder = { urgent: 0, soon: 1, plan: 2, wait: 3 };
         return urgencyOrder[a.buyUrgency] - urgencyOrder[b.buyUrgency];
       }));
@@ -236,11 +255,13 @@ export default function AIEngine() {
     return productAnalyses.find(a => a.product.id === selectedProductId) || null;
   }, [productAnalyses, selectedProductId]);
 
+  // Generate chart data - always show something
   const chartData = useMemo(() => {
     if (!selectedAnalysis) return [];
     
     const productSales = salesData.filter((s: any) => s.product_id === selectedAnalysis.product.id);
     
+    // Group by week
     const weeklyData: { [key: string]: number } = {};
     productSales.forEach((s: any) => {
       const date = new Date(s.sale_date);
@@ -254,26 +275,34 @@ export default function AIEngine() {
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-8);
 
-    const historical = sortedWeeks.map(([date, qty]) => ({
-      date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      historical: qty,
-      predicted: null as number | null,
-    }));
+    const result: { date: string; historical: number | null; predicted: number | null }[] = [];
+    
+    // Add historical data if exists
+    sortedWeeks.forEach(([date, qty]) => {
+      result.push({
+        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        historical: qty,
+        predicted: null,
+      });
+    });
 
-    const lastDate = sortedWeeks.length > 0 ? new Date(sortedWeeks[sortedWeeks.length - 1][0]) : new Date();
-    const weeklyDemand = Math.round(selectedAnalysis.adjustedDemand / 4);
+    // Generate prediction weeks (always show these)
+    const lastDate = sortedWeeks.length > 0 
+      ? new Date(sortedWeeks[sortedWeeks.length - 1][0]) 
+      : new Date();
+    const weeklyDemand = Math.max(1, Math.round(selectedAnalysis.adjustedDemand / 4));
     
     for (let i = 1; i <= 4; i++) {
       const forecastDate = new Date(lastDate);
       forecastDate.setDate(forecastDate.getDate() + (i * 7));
-      historical.push({
+      result.push({
         date: forecastDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        historical: null as any,
-        predicted: weeklyDemand + Math.round((Math.random() - 0.5) * 3),
+        historical: null,
+        predicted: weeklyDemand + Math.round((Math.random() - 0.5) * Math.max(1, weeklyDemand * 0.2)),
       });
     }
 
-    return historical;
+    return result;
   }, [selectedAnalysis, salesData]);
 
   const formatMoney = (n: number) => '₱' + n.toLocaleString();
@@ -282,6 +311,11 @@ export default function AIEngine() {
     setSelectedProductId(productId);
     setDialogOpen(true);
   };
+
+  // Count products with actual sales
+  const productsWithSalesCount = useMemo(() => {
+    return productAnalyses.filter(a => a.hasSalesHistory).length;
+  }, [productAnalyses]);
 
   if (loading) {
     return (
@@ -304,15 +338,23 @@ export default function AIEngine() {
               AI Demand Forecasting
             </h1>
             <p className="text-sm text-muted-foreground">
-              Predictions with price intelligence
+              Predictions adjusted with competitor price intelligence
             </p>
           </div>
-          {hasGenerated && (
-            <Button onClick={() => { setHasGenerated(false); fetchData(); }} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Regenerate
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {hasGenerated && (
+              <>
+                <Button onClick={() => setShowExplanation(true)} variant="ghost" size="sm">
+                  <Info className="h-4 w-4 mr-1" />
+                  How it works
+                </Button>
+                <Button onClick={() => { setHasGenerated(false); fetchData(); }} variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Regenerate
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Generate Button */}
@@ -348,7 +390,7 @@ export default function AIEngine() {
         {hasGenerated && productAnalyses.length > 0 && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              {productAnalyses.length} products • Click to view details
+              {productsWithSalesCount} products with sales history • {productAnalyses.length} total
             </p>
             
             <div className="border border-border rounded-lg overflow-hidden">
@@ -358,20 +400,25 @@ export default function AIEngine() {
                     <th className="text-left p-3 font-medium">Product</th>
                     <th className="text-left p-3 font-medium">Category</th>
                     <th className="text-right p-3 font-medium">Stock</th>
-                    <th className="text-right p-3 font-medium">Demand</th>
+                    <th className="text-right p-3 font-medium">Demand/mo</th>
                     <th className="text-center p-3 font-medium">Trend</th>
-                    <th className="text-center p-3 font-medium">Buy Status</th>
-                    <th className="text-center p-3 font-medium">Price Action</th>
+                    <th className="text-center p-3 font-medium">Status</th>
+                    <th className="text-center p-3 font-medium">Price</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {productAnalyses.map(analysis => (
                     <tr 
                       key={analysis.product.id}
-                      className="hover:bg-muted/30 cursor-pointer transition-colors"
+                      className={`hover:bg-muted/30 cursor-pointer transition-colors ${!analysis.hasSalesHistory ? 'opacity-60' : ''}`}
                       onClick={() => handleProductClick(analysis.product.id)}
                     >
-                      <td className="p-3 font-medium">{analysis.product.name}</td>
+                      <td className="p-3">
+                        <span className="font-medium">{analysis.product.name}</span>
+                        {!analysis.hasSalesHistory && (
+                          <span className="text-xs text-muted-foreground ml-2">(no sales)</span>
+                        )}
+                      </td>
                       <td className="p-3 text-muted-foreground">{analysis.product.category}</td>
                       <td className="p-3 text-right">{analysis.product.currentStock}</td>
                       <td className="p-3 text-right font-medium text-primary">{analysis.adjustedDemand}</td>
@@ -381,15 +428,19 @@ export default function AIEngine() {
                         {analysis.forecast.trend === 'stable' && <Minus className="h-4 w-4 text-muted-foreground inline" />}
                       </td>
                       <td className="p-3 text-center">
-                        <Badge variant={
-                          analysis.buyUrgency === 'urgent' ? 'destructive' :
-                          analysis.buyUrgency === 'soon' ? 'default' :
-                          'secondary'
-                        } className="text-xs">
-                          {analysis.buyUrgency === 'urgent' ? 'Order Now' :
-                           analysis.buyUrgency === 'soon' ? 'Order Soon' :
-                           analysis.buyUrgency === 'plan' ? 'Plan' : 'OK'}
-                        </Badge>
+                        {analysis.hasSalesHistory ? (
+                          <Badge variant={
+                            analysis.buyUrgency === 'urgent' ? 'destructive' :
+                            analysis.buyUrgency === 'soon' ? 'default' :
+                            'secondary'
+                          } className="text-xs">
+                            {analysis.buyUrgency === 'urgent' ? 'Order Now' :
+                             analysis.buyUrgency === 'soon' ? 'Order Soon' :
+                             analysis.buyUrgency === 'plan' ? 'Plan' : 'OK'}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="p-3 text-center">
                         {analysis.priceAction === 'lower' && (
@@ -423,6 +474,9 @@ export default function AIEngine() {
                   <DialogTitle className="flex items-center gap-2">
                     <Package className="h-4 w-4" />
                     {selectedAnalysis.product.name}
+                    {!selectedAnalysis.hasSalesHistory && (
+                      <Badge variant="outline" className="text-xs ml-2">No sales history</Badge>
+                    )}
                   </DialogTitle>
                 </DialogHeader>
 
@@ -431,11 +485,11 @@ export default function AIEngine() {
                   <div className="grid grid-cols-4 gap-3">
                     <div className="text-center p-3 bg-muted/30 rounded">
                       <p className="text-2xl font-bold text-primary">{selectedAnalysis.adjustedDemand}</p>
-                      <p className="text-xs text-muted-foreground">Predicted Demand</p>
+                      <p className="text-xs text-muted-foreground">Predicted/mo</p>
                     </div>
                     <div className="text-center p-3 bg-muted/30 rounded">
                       <p className="text-2xl font-bold">{selectedAnalysis.product.currentStock}</p>
-                      <p className="text-xs text-muted-foreground">Current Stock</p>
+                      <p className="text-xs text-muted-foreground">In Stock</p>
                     </div>
                     <div className="text-center p-3 bg-muted/30 rounded">
                       <p className="text-2xl font-bold">{selectedAnalysis.forecast.suggestedReorderQty}</p>
@@ -447,47 +501,9 @@ export default function AIEngine() {
                     </div>
                   </div>
 
-                  {/* When to Buy */}
-                  <div className={`p-3 rounded border ${
-                    selectedAnalysis.buyUrgency === 'urgent' ? 'border-destructive bg-destructive/5' :
-                    selectedAnalysis.buyUrgency === 'soon' ? 'border-primary bg-primary/5' :
-                    'border-border'
-                  }`}>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">WHEN TO BUY</p>
-                    <p className="text-sm">{selectedAnalysis.whenToBuy}</p>
-                  </div>
-
-                  {/* Price Intelligence */}
+                  {/* Forecast Chart */}
                   <div className="p-3 rounded border border-border">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">PRICE ANALYSIS</p>
-                    <div className="grid grid-cols-3 gap-4 text-center mb-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Your Price</p>
-                        <p className="font-semibold">{formatMoney(selectedAnalysis.product.sellingPrice)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Market Avg</p>
-                        <p className="font-semibold">{formatMoney(selectedAnalysis.avgCompetitorPrice)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Difference</p>
-                        <p className={`font-semibold ${selectedAnalysis.priceDifference > 5 ? 'text-destructive' : selectedAnalysis.priceDifference < -5 ? 'text-primary' : ''}`}>
-                          {selectedAnalysis.priceDifference > 0 ? '+' : ''}{selectedAnalysis.priceDifference.toFixed(1)}%
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{selectedAnalysis.priceRecommendation}</p>
-                    <div className="flex gap-2 mt-2">
-                      {selectedAnalysis.competitors.map((c, i) => (
-                        <span key={i} className="text-xs bg-muted px-2 py-1 rounded">
-                          {c.competitorName}: {formatMoney(c.price)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Chart */}
-                  {chartData.length > 0 && (
+                    <p className="text-xs font-medium text-muted-foreground mb-2">DEMAND FORECAST</p>
                     <div className="h-[180px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData}>
@@ -524,7 +540,51 @@ export default function AIEngine() {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                  )}
+                    {!selectedAnalysis.hasSalesHistory && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        No historical sales. Prediction based on category averages.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* When to Buy */}
+                  <div className={`p-3 rounded border ${
+                    selectedAnalysis.buyUrgency === 'urgent' ? 'border-destructive bg-destructive/5' :
+                    selectedAnalysis.buyUrgency === 'soon' ? 'border-primary bg-primary/5' :
+                    'border-border'
+                  }`}>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">WHEN TO BUY</p>
+                    <p className="text-sm">{selectedAnalysis.whenToBuy}</p>
+                  </div>
+
+                  {/* Price Intelligence */}
+                  <div className="p-3 rounded border border-border">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">PRICE ANALYSIS</p>
+                    <div className="grid grid-cols-3 gap-4 text-center mb-3">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Your Price</p>
+                        <p className="font-semibold">{formatMoney(selectedAnalysis.product.sellingPrice)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Market Avg</p>
+                        <p className="font-semibold">{formatMoney(selectedAnalysis.avgCompetitorPrice)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Difference</p>
+                        <p className={`font-semibold ${selectedAnalysis.priceDifference > 5 ? 'text-destructive' : selectedAnalysis.priceDifference < -5 ? 'text-primary' : ''}`}>
+                          {selectedAnalysis.priceDifference > 0 ? '+' : ''}{selectedAnalysis.priceDifference.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{selectedAnalysis.priceRecommendation}</p>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {selectedAnalysis.competitors.map((c, i) => (
+                        <span key={i} className="text-xs bg-muted px-2 py-1 rounded">
+                          {c.competitorName}: {formatMoney(c.price)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* AI Note */}
                   <p className="text-xs text-muted-foreground">
@@ -533,6 +593,49 @@ export default function AIEngine() {
                 </div>
               </>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Explanation Dialog */}
+        <Dialog open={showExplanation} onOpenChange={setShowExplanation}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>How Price Intelligence Improves Accuracy</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 text-sm">
+              <div>
+                <h4 className="font-medium mb-1">The Problem</h4>
+                <p className="text-muted-foreground">
+                  Traditional demand forecasting only looks at your sales history. But sales depend heavily on your price relative to competitors.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="font-medium mb-1">Our Solution</h4>
+                <p className="text-muted-foreground">
+                  We compare your prices against Octagon, Villman, and PC Express, then adjust predictions using price elasticity:
+                </p>
+                <ul className="mt-2 space-y-1 text-muted-foreground">
+                  <li>• <strong>Higher than market:</strong> Demand reduced (customers buy elsewhere)</li>
+                  <li>• <strong>Lower than market:</strong> Demand increased (you attract more buyers)</li>
+                  <li>• <strong>Competitive:</strong> Base prediction holds</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h4 className="font-medium mb-1">Example</h4>
+                <p className="text-muted-foreground">
+                  If your GPU is priced 15% above market average, we reduce the demand forecast by ~12%. This prevents over-ordering stock that may not sell at your current price point.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="font-medium mb-1">The Result</h4>
+                <p className="text-muted-foreground">
+                  More accurate reorder quantities and clear guidance on whether to adjust pricing for optimal inventory turnover.
+                </p>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
