@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { PricingSimulator } from '@/components/PricingSimulator';
+import { CompetitorScraper } from '@/components/CompetitorScraper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { analyzePricing, PricingAnalysis } from '@/lib/pricingElasticity';
 import { 
   Calculator, TrendingUp, DollarSign, Target, Search, 
-  Plus, Loader2, Building2, AlertCircle, ChevronRight
+  Plus, Loader2, Building2, AlertCircle, ChevronRight, Globe
 } from 'lucide-react';
 
 interface Product {
@@ -53,6 +54,7 @@ export default function Pricing() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('simulator');
   
   // Add competitor price dialog
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -244,17 +246,40 @@ export default function Pricing() {
               Analyze price elasticity and simulate demand at different price points
             </p>
           </div>
-          {isAdmin && (
-            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-              <Plus size={18} />
-              Add Competitor Price
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {isAdmin && (
+              <>
+                <Button variant="outline" onClick={() => setActiveTab('scraper')} className="gap-2">
+                  <Globe size={18} />
+                  Scrape Prices
+                </Button>
+                <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+                  <Plus size={18} />
+                  Add Manually
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Product Selection Sidebar */}
-          <div className="lg:col-span-1 space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="simulator" className="gap-2">
+              <Calculator className="h-4 w-4" />
+              Simulator
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="scraper" className="gap-2">
+                <Globe className="h-4 w-4" />
+                Price Scraper
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="simulator" className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Product Selection Sidebar */}
+              <div className="lg:col-span-1 space-y-4">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Select Product</CardTitle>
@@ -322,10 +347,10 @@ export default function Pricing() {
                 </CardContent>
               </Card>
             )}
-          </div>
+              </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3">
+              {/* Main Content */}
+              <div className="lg:col-span-3">
             {selectedProduct && pricingAnalysis ? (
               <div className="space-y-4">
                 <Card>
@@ -356,8 +381,26 @@ export default function Pricing() {
                 </div>
               </Card>
             )}
-          </div>
-        </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="scraper" className="mt-6">
+              <CompetitorScraper 
+                products={products.map(p => ({
+                  id: p.id,
+                  name: p.name,
+                  sku: p.sku,
+                  category: p.category,
+                  sellingPrice: p.sellingPrice,
+                }))}
+                onComplete={fetchData}
+                userId={user?.id}
+              />
+            </TabsContent>
+          )}
+        </Tabs>
 
         {/* Add Competitor Price Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
