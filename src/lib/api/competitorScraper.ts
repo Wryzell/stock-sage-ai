@@ -28,6 +28,8 @@ export interface ScrapeResult {
   error?: string;
 }
 
+export type ScanMode = 'quick' | 'full';
+
 // Product name to search term mapping for better results
 export const PRODUCT_SEARCH_TERMS: Record<string, string> = {
   // Laptops
@@ -107,11 +109,41 @@ export type Competitor = 'Octagon' | 'Villman' | 'PC Express';
 export const ALL_COMPETITORS: Competitor[] = ['Octagon', 'Villman', 'PC Express'];
 
 /**
+ * Get products that need price scraping (no recent data)
+ */
+export async function getProductsNeedingScrape(
+  products: ProductToScrape[],
+  maxAgeHours: number = 24
+): Promise<ProductToScrape[]> {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - maxAgeHours);
+    
+    // Get recent competitor prices
+    const { data: recentPrices } = await supabase
+      .from('competitor_prices')
+      .select('product_id, recorded_at')
+      .gte('recorded_at', cutoffDate.toISOString());
+    
+    const recentProductIds = new Set(
+      (recentPrices || []).map(p => p.product_id)
+    );
+    
+    // Filter out products with recent prices
+    return products.filter(p => !recentProductIds.has(p.id));
+  } catch (error) {
+    console.error('Error checking recent prices:', error);
+    return products; // Fall back to all products
+  }
+}
+
+/**
  * Scrape competitor prices for given products
  */
 export async function scrapeCompetitorPrices(
   products: ProductToScrape[],
-  competitors?: Competitor[]
+  competitors?: Competitor[],
+  scanMode?: ScanMode
 ): Promise<ScrapeResult> {
   try {
     // Add search terms based on product names
@@ -124,6 +156,7 @@ export async function scrapeCompetitorPrices(
       body: {
         products: productsWithTerms,
         competitors: competitors || ALL_COMPETITORS,
+        scanMode: scanMode || 'full',
       },
     });
 
