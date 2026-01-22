@@ -54,15 +54,18 @@ export default function AIEngine() {
   const [salesData, setSalesData] = useState<SaleRecord[]>([]);
   const [forecastData, setForecastData] = useState<ForecastData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('ai');
   const [simulatedPriceChange, setSimulatedPriceChange] = useState(0);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchDataOnly();
   }, []);
 
-  const fetchData = async () => {
+  // Fetch data without generating forecasts
+  const fetchDataOnly = async () => {
     try {
       setLoading(true);
       const [productsRes, competitorRes, salesRes] = await Promise.all([
@@ -91,30 +94,6 @@ export default function AIEngine() {
       setCompetitorPrices(competitorRes.data || []);
       setSalesData(salesRes.data || []);
 
-      const formattedSales = (salesRes.data || [])
-        .filter((s: any) => s.products)
-        .map((s: any) => ({
-          productId: s.product_id,
-          productName: s.products.name,
-          category: s.products.category,
-          quantity: s.quantity,
-          total: s.quantity * Number(s.unit_price),
-          date: s.sale_date,
-          currentStock: s.products.current_stock,
-          minStock: s.products.min_stock,
-        }));
-
-      const formattedProducts = mappedProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        currentStock: p.currentStock,
-        minStock: p.minStock,
-      }));
-
-      const forecasts = generateForecasts(formattedSales, formattedProducts, 30);
-      setForecastData(forecasts);
-
       // Auto-select product with most sales
       const productSales = mappedProducts.map(p => ({
         product: p,
@@ -131,6 +110,54 @@ export default function AIEngine() {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Generate forecasts
+  const generateForecastData = async () => {
+    try {
+      setGenerating(true);
+      
+      // Simulate AI processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const formattedSales = salesData
+        .filter((s: any) => s.products)
+        .map((s: any) => ({
+          productId: s.product_id,
+          productName: s.products.name,
+          category: s.products.category,
+          quantity: s.quantity,
+          total: s.quantity * Number(s.unit_price),
+          date: s.sale_date,
+          currentStock: s.products.current_stock,
+          minStock: s.products.min_stock,
+        }));
+
+      const formattedProducts = products.map(p => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        currentStock: p.currentStock,
+        minStock: p.minStock,
+      }));
+
+      const forecasts = generateForecasts(formattedSales, formattedProducts, 30);
+      setForecastData(forecasts);
+      setHasGenerated(true);
+      toast.success('AI Forecast generated successfully!');
+
+    } catch (error: any) {
+      toast.error('Failed to generate forecast');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const fetchData = async () => {
+    await fetchDataOnly();
+    if (hasGenerated) {
+      await generateForecastData();
     }
   };
 
@@ -315,7 +342,44 @@ export default function AIEngine() {
           </div>
         </div>
 
-        {/* Three Tab Navigation */}
+        {/* Generate Forecast Button - Show if not generated yet */}
+        {!hasGenerated && (
+          <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+            <CardContent className="py-12 text-center">
+              <Brain className="h-16 w-16 mx-auto mb-4 text-primary" />
+              <h2 className="text-2xl font-bold mb-2">AI Demand Forecasting</h2>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Our AI analyzes 120 days of sales history, market trends, and competitor prices to predict future demand
+              </p>
+              <Button 
+                size="lg" 
+                onClick={generateForecastData}
+                disabled={generating}
+                className="px-8"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Generating AI Forecast...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-5 w-5 mr-2" />
+                    Generate AI Forecast
+                  </>
+                )}
+              </Button>
+              {generating && (
+                <p className="text-sm text-muted-foreground mt-4 animate-pulse">
+                  🤖 Analyzing sales patterns, seasonality, and market trends...
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Three Tab Navigation - Show after forecast is generated */}
+        {hasGenerated && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 h-14">
             <TabsTrigger value="ai" className="text-base gap-2">
@@ -819,6 +883,7 @@ export default function AIEngine() {
             )}
           </TabsContent>
         </Tabs>
+        )}
       </div>
     </Layout>
   );
