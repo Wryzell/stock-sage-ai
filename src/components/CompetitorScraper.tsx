@@ -16,7 +16,6 @@ import {
   ScrapedPrice,
   Competitor,
   ALL_COMPETITORS,
-  PRODUCT_SEARCH_TERMS
 } from '@/lib/api/competitorScraper';
 
 interface Product {
@@ -80,12 +79,13 @@ export function CompetitorScraper({ products, onComplete, userId }: CompetitorSc
     setResults([]);
 
     try {
+      // No need for manual search terms - the edge function generates them automatically!
       const productsToScrape = products
         .filter(p => selectedProducts.includes(p.id))
         .map(p => ({
           id: p.id,
           name: p.name,
-          searchTerm: PRODUCT_SEARCH_TERMS[p.name] || p.name,
+          category: p.category,  // Category is used to auto-generate search terms
         }));
 
       // Simulate progress while waiting
