@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Users, Bell, Shield, Database, FileSpreadsheet, Upload, Download, Loader2, Package, ShoppingCart, TrendingUp, AlertTriangle, ClipboardList, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Bell, Shield, Database, ClipboardList, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import * as XLSX from 'xlsx';
 import { UserManagement } from '@/components/UserManagement';
 import { AuditLogs } from '@/components/AuditLogs';
 import { RecycleBin } from '@/components/RecycleBin';
@@ -19,215 +17,11 @@ import { RecycleBin } from '@/components/RecycleBin';
 export default function Settings() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('system');
-  const [exporting, setExporting] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Redirect staff users
   if (user?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
-
-  // Export functions
-  const exportProducts = async () => {
-    setExporting('products');
-    try {
-      const { data, error } = await supabase.from('products').select('*');
-      if (error) throw error;
-      
-      const worksheet = XLSX.utils.json_to_sheet(data || []);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
-      XLSX.writeFile(workbook, `products_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Products exported successfully');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export products');
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const exportSales = async () => {
-    setExporting('sales');
-    try {
-      const { data, error } = await supabase
-        .from('sales')
-        .select('*, products(name)')
-        .order('sale_date', { ascending: false });
-      if (error) throw error;
-      
-      const formattedData = data?.map(sale => ({
-        ...sale,
-        product_name: sale.products?.name || 'Unknown',
-        products: undefined
-      })) || [];
-      
-      const worksheet = XLSX.utils.json_to_sheet(formattedData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales');
-      XLSX.writeFile(workbook, `sales_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Sales exported successfully');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export sales');
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const exportForecasts = async () => {
-    setExporting('forecasts');
-    try {
-      const { data, error } = await supabase.from('forecasts').select('*');
-      if (error) throw error;
-      
-      const worksheet = XLSX.utils.json_to_sheet(data || []);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Forecasts');
-      XLSX.writeFile(workbook, `forecasts_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Forecasts exported successfully');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export forecasts');
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const exportAlerts = async () => {
-    setExporting('alerts');
-    try {
-      const { data, error } = await supabase.from('alerts').select('*');
-      if (error) throw error;
-      
-      const worksheet = XLSX.utils.json_to_sheet(data || []);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Alerts');
-      XLSX.writeFile(workbook, `alerts_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Alerts exported successfully');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export alerts');
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const exportAll = async () => {
-    setExporting('all');
-    try {
-      const workbook = XLSX.utils.book_new();
-      
-      // Products
-      const { data: products } = await supabase.from('products').select('*');
-      if (products) {
-        const ws1 = XLSX.utils.json_to_sheet(products);
-        XLSX.utils.book_append_sheet(workbook, ws1, 'Products');
-      }
-      
-      // Sales
-      const { data: sales } = await supabase.from('sales').select('*, products(name)');
-      if (sales) {
-        const formattedSales = sales.map(s => ({ ...s, product_name: s.products?.name, products: undefined }));
-        const ws2 = XLSX.utils.json_to_sheet(formattedSales);
-        XLSX.utils.book_append_sheet(workbook, ws2, 'Sales');
-      }
-      
-      // Forecasts
-      const { data: forecasts } = await supabase.from('forecasts').select('*');
-      if (forecasts) {
-        const ws3 = XLSX.utils.json_to_sheet(forecasts);
-        XLSX.utils.book_append_sheet(workbook, ws3, 'Forecasts');
-      }
-      
-      // Alerts
-      const { data: alerts } = await supabase.from('alerts').select('*');
-      if (alerts) {
-        const ws4 = XLSX.utils.json_to_sheet(alerts);
-        XLSX.utils.book_append_sheet(workbook, ws4, 'Alerts');
-      }
-      
-      XLSX.writeFile(workbook, `stock_sage_backup_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('All data exported successfully');
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export data');
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  // Import function
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImporting(true);
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      
-      let importedCount = 0;
-      
-      // Check for Products sheet
-      if (workbook.SheetNames.includes('Products')) {
-        const sheet = workbook.Sheets['Products'];
-        const products = XLSX.utils.sheet_to_json(sheet) as any[];
-        
-        for (const product of products) {
-          // Skip if product has an ID (existing product)
-          if (product.id) continue;
-          
-          const { error } = await supabase.from('products').insert({
-            name: product.name,
-            sku: product.sku,
-            category: product.category || 'General',
-            description: product.description,
-            current_stock: parseInt(product.current_stock) || 0,
-            min_stock: parseInt(product.min_stock) || 10,
-            cost_price: parseFloat(product.cost_price) || 0,
-            selling_price: parseFloat(product.selling_price) || 0,
-            status: product.status || 'in_stock'
-          });
-          
-          if (!error) importedCount++;
-        }
-      }
-      
-      // Check for Sales sheet
-      if (workbook.SheetNames.includes('Sales')) {
-        const sheet = workbook.Sheets['Sales'];
-        const sales = XLSX.utils.sheet_to_json(sheet) as any[];
-        
-        for (const sale of sales) {
-          if (sale.id || !sale.product_id) continue;
-          
-          const { error } = await supabase.from('sales').insert({
-            product_id: sale.product_id,
-            quantity: parseInt(sale.quantity) || 1,
-            unit_price: parseFloat(sale.unit_price) || 0,
-            total: parseFloat(sale.total) || 0,
-            sale_date: sale.sale_date || new Date().toISOString()
-          });
-          
-          if (!error) importedCount++;
-        }
-      }
-      
-      if (importedCount > 0) {
-        toast.success(`Successfully imported ${importedCount} records`);
-      } else {
-        toast.info('No new records to import. Make sure new items don\'t have an ID field.');
-      }
-    } catch (error) {
-      console.error('Import error:', error);
-      toast.error('Failed to import file. Please check the format.');
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   return (
     <Layout>
@@ -256,10 +50,6 @@ export default function Settings() {
             <TabsTrigger value="security" className="gap-2">
               <Shield size={16} />
               Security
-            </TabsTrigger>
-            <TabsTrigger value="data" className="gap-2">
-              <FileSpreadsheet size={16} />
-              Import/Export
             </TabsTrigger>
             <TabsTrigger value="recycle" className="gap-2">
               <Trash2 size={16} />
@@ -431,115 +221,6 @@ export default function Settings() {
             </div>
           </TabsContent>
 
-          {/* Import/Export Data */}
-          <TabsContent value="data" className="space-y-6" forceMount style={{ display: activeTab === 'data' ? 'block' : 'none' }}>
-            {/* Export Section */}
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-2">Export Data</h3>
-              <p className="text-muted-foreground mb-4">
-                Download your data as Excel files for backup or analysis.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-md border border-border hover:border-primary/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Package size={20} className="text-primary" />
-                    <h4 className="font-medium">Products</h4>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">Export all products with stock levels and pricing</p>
-                  <Button variant="outline" size="sm" onClick={exportProducts} disabled={!!exporting} className="gap-2">
-                    {exporting === 'products' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                    Export Products
-                  </Button>
-                </div>
-                
-                <div className="p-4 rounded-md border border-border hover:border-primary/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-2">
-                    <ShoppingCart size={20} className="text-primary" />
-                    <h4 className="font-medium">Sales</h4>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">Export all sales transactions with product details</p>
-                  <Button variant="outline" size="sm" onClick={exportSales} disabled={!!exporting} className="gap-2">
-                    {exporting === 'sales' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                    Export Sales
-                  </Button>
-                </div>
-                
-                <div className="p-4 rounded-md border border-border hover:border-primary/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-2">
-                    <TrendingUp size={20} className="text-primary" />
-                    <h4 className="font-medium">Forecasts</h4>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">Export all AI-generated demand forecasts</p>
-                  <Button variant="outline" size="sm" onClick={exportForecasts} disabled={!!exporting} className="gap-2">
-                    {exporting === 'forecasts' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                    Export Forecasts
-                  </Button>
-                </div>
-                
-                <div className="p-4 rounded-md border border-border hover:border-primary/50 transition-colors">
-                  <div className="flex items-center gap-3 mb-2">
-                    <AlertTriangle size={20} className="text-primary" />
-                    <h4 className="font-medium">Alerts</h4>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">Export all inventory alerts and warnings</p>
-                  <Button variant="outline" size="sm" onClick={exportAlerts} disabled={!!exporting} className="gap-2">
-                    {exporting === 'alerts' ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                    Export Alerts
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="mt-6 pt-4 border-t border-border">
-                <Button onClick={exportAll} disabled={!!exporting} className="gap-2">
-                  {exporting === 'all' ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                  Export All Data
-                </Button>
-              </div>
-            </div>
-            
-            {/* Import Section */}
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-2">Import Data</h3>
-              <p className="text-muted-foreground mb-4">
-                Upload an Excel file to import new products or sales. The file should have sheets named "Products" or "Sales".
-              </p>
-              
-              <div className="p-6 border-2 border-dashed border-border rounded-lg text-center">
-                <Upload size={40} className="mx-auto mb-3 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  Click to upload or drag and drop an Excel file (.xlsx)
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleImport}
-                  className="hidden"
-                  id="excel-import"
-                />
-                <Button 
-                  variant="outline" 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={importing}
-                  className="gap-2"
-                >
-                  {importing ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                  {importing ? 'Importing...' : 'Choose File'}
-                </Button>
-              </div>
-              
-              <div className="mt-4 p-4 bg-muted/50 rounded-md">
-                <h4 className="text-sm font-medium mb-2">Import Format Guidelines</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• <strong>Products sheet:</strong> name, sku, category, current_stock, min_stock, cost_price, selling_price</li>
-                  <li>• <strong>Sales sheet:</strong> product_id, quantity, unit_price, total, sale_date</li>
-                  <li>• New items should NOT have an "id" column (IDs are auto-generated)</li>
-                  <li>• Existing items (with ID) will be skipped to prevent duplicates</li>
-                </ul>
-              </div>
-            </div>
-          </TabsContent>
 
           {/* Recycle Bin */}
           <TabsContent value="recycle" className="space-y-6">
