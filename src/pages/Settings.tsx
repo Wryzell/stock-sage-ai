@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Users, Bell, Shield, Database, Brain, FileSpreadsheet, Upload, Download, Loader2, Package, ShoppingCart, TrendingUp, AlertTriangle, ClipboardList, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Bell, Shield, Database, FileSpreadsheet, Upload, Download, Loader2, Package, ShoppingCart, TrendingUp, AlertTriangle, ClipboardList, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -245,10 +245,6 @@ export default function Settings() {
               <SettingsIcon size={16} />
               System
             </TabsTrigger>
-            <TabsTrigger value="ai" className="gap-2">
-              <Brain size={16} />
-              AI Settings
-            </TabsTrigger>
             <TabsTrigger value="users" className="gap-2">
               <Users size={16} />
               Users
@@ -350,62 +346,6 @@ export default function Settings() {
             </div>
           </TabsContent>
 
-          {/* AI Settings */}
-          <TabsContent value="ai" className="space-y-6">
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-4">Forecasting Parameters</h3>
-              <p className="text-muted-foreground mb-4">
-                The system uses Exponential Smoothing algorithm for demand prediction.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Default Forecast Period</Label>
-                  <Select defaultValue="30">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30 Days</SelectItem>
-                      <SelectItem value="60">60 Days</SelectItem>
-                      <SelectItem value="90">90 Days</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Training Data Window</Label>
-                  <Select defaultValue="6">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="3">3 Months</SelectItem>
-                      <SelectItem value="6">6 Months</SelectItem>
-                      <SelectItem value="12">12 Months</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-4">Alert Thresholds</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Low Stock Warning (%)</Label>
-                  <Input type="number" defaultValue={20} min={5} max={50} />
-                  <p className="text-xs text-muted-foreground">Trigger alert when stock falls below this % of minimum</p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Stockout Risk Days</Label>
-                  <Input type="number" defaultValue={7} min={1} max={30} />
-                  <p className="text-xs text-muted-foreground">Alert when stockout predicted within this many days</p>
-                </div>
-              </div>
-              <Button className="mt-6" onClick={() => toast.success('AI settings saved')}>
-                Save AI Settings
-              </Button>
-            </div>
-          </TabsContent>
 
           {/* User Management */}
           <TabsContent value="users" className="space-y-6">
