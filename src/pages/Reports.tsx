@@ -50,7 +50,6 @@ interface MonthlySummary {
 const reportTypes: ReportType[] = [
   { id: 'daily', name: 'Daily Income Report', description: 'Sales and income by day', icon: Calendar },
   { id: 'monthly', name: 'Monthly Income Report', description: 'Monthly revenue summary', icon: BarChart3 },
-  { id: 'inventory', name: 'Inventory Summary', description: 'Current stock levels and valuation', icon: BarChart3 },
   { id: 'sales', name: 'Sales Analysis', description: 'Sales performance and trends', icon: TrendingUp },
 ];
 
@@ -66,7 +65,7 @@ export default function Reports() {
   // Report data states
   const [dailySummaries, setDailySummaries] = useState<DailySummary[]>([]);
   const [monthlySummaries, setMonthlySummaries] = useState<MonthlySummary[]>([]);
-  const [inventorySummary, setInventorySummary] = useState<{ category: string; products: number; totalStock: number; valuation: number }[]>([]);
+  
   const [salesData, setSalesData] = useState<{ totalRevenue: number; transactions: number; avgTransaction: number }>({ totalRevenue: 0, transactions: 0, avgTransaction: 0 });
 
   const availableReports = isAdmin 
@@ -173,42 +172,6 @@ export default function Reports() {
     }
   };
 
-  const fetchInventoryReport = async () => {
-    setLoading(true);
-    try {
-      const { data: products, error } = await supabase
-        .from('products')
-        .select('*');
-
-      if (error) throw error;
-
-      // Group by category
-      const categoryMap = new Map<string, { count: number; stock: number; value: number }>();
-      
-      products?.forEach((product: any) => {
-        const cat = product.category || 'Uncategorized';
-        const existing = categoryMap.get(cat) || { count: 0, stock: 0, value: 0 };
-        existing.count += 1;
-        existing.stock += product.current_stock || 0;
-        existing.value += (product.current_stock || 0) * Number(product.selling_price || 0);
-        categoryMap.set(cat, existing);
-      });
-
-      const summaries = Array.from(categoryMap.entries()).map(([category, data]) => ({
-        category,
-        products: data.count,
-        totalStock: data.stock,
-        valuation: data.value,
-      }));
-
-      setInventorySummary(summaries);
-    } catch (error) {
-      console.error('Error fetching inventory report:', error);
-      toast.error('Failed to fetch inventory report');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchSalesReport = async () => {
     setLoading(true);
@@ -244,9 +207,6 @@ export default function Reports() {
         break;
       case 'monthly':
         fetchMonthlyReport();
-        break;
-      case 'inventory':
-        fetchInventoryReport();
         break;
       case 'sales':
         fetchSalesReport();
@@ -518,44 +478,6 @@ export default function Reports() {
                           </>
                         ) : (
                           <p className="text-center text-muted-foreground py-8">No sales data available</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Inventory Report */}
-                    {selectedReport === 'inventory' && (
-                      <div className="space-y-4">
-                        <h4 className="font-semibold text-heading">Inventory Summary by Category</h4>
-                        
-                        {inventorySummary.length > 0 ? (
-                          <table className="data-table w-full">
-                            <thead>
-                              <tr>
-                                <th className="text-left p-2 border-b">Category</th>
-                                <th className="text-right p-2 border-b">Products</th>
-                                <th className="text-right p-2 border-b">Total Stock</th>
-                                <th className="text-right p-2 border-b">Valuation</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {inventorySummary.map((cat) => (
-                                <tr key={cat.category} className="border-b">
-                                  <td className="p-2">{cat.category}</td>
-                                  <td className="p-2 text-right">{cat.products}</td>
-                                  <td className="p-2 text-right">{cat.totalStock} units</td>
-                                  <td className="p-2 text-right font-medium">{formatCurrency(cat.valuation)}</td>
-                                </tr>
-                              ))}
-                              <tr className="font-semibold bg-muted">
-                                <td className="p-2">TOTAL</td>
-                                <td className="p-2 text-right">{inventorySummary.reduce((s, c) => s + c.products, 0)}</td>
-                                <td className="p-2 text-right">{inventorySummary.reduce((s, c) => s + c.totalStock, 0)} units</td>
-                                <td className="p-2 text-right">{formatCurrency(inventorySummary.reduce((s, c) => s + c.valuation, 0))}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        ) : (
-                          <p className="text-center text-muted-foreground py-8">No inventory data available</p>
                         )}
                       </div>
                     )}
