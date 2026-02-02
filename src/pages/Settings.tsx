@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Users, Shield, Database, ClipboardList, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Database, ClipboardList, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { UserManagement } from '@/components/UserManagement';
@@ -42,10 +42,6 @@ export default function Settings() {
             <TabsTrigger value="users" className="gap-2">
               <Users size={16} />
               Users
-            </TabsTrigger>
-            <TabsTrigger value="security" className="gap-2">
-              <Shield size={16} />
-              Security
             </TabsTrigger>
             <TabsTrigger value="recycle" className="gap-2">
               <Trash2 size={16} />
@@ -138,52 +134,6 @@ export default function Settings() {
             <UserManagement />
           </TabsContent>
 
-
-          {/* Security */}
-          <TabsContent value="security" className="space-y-6">
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-4">Password Policy</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-md border border-border">
-                  <div>
-                    <p className="font-medium">Minimum Length</p>
-                    <p className="text-sm text-muted-foreground">Required password length</p>
-                  </div>
-                  <Input type="number" className="w-20" defaultValue={8} min={6} max={20} />
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-md border border-border">
-                  <div>
-                    <p className="font-medium">Require Special Characters</p>
-                    <p className="text-sm text-muted-foreground">Password must contain special characters</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-md border border-border">
-                  <div>
-                    <p className="font-medium">Password Expiry (Days)</p>
-                    <p className="text-sm text-muted-foreground">Force password change after this period</p>
-                  </div>
-                  <Input type="number" className="w-20" defaultValue={90} min={30} max={365} />
-                </div>
-              </div>
-            </div>
-
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-4">Session Settings</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-md border border-border">
-                  <div>
-                    <p className="font-medium">Session Timeout (Minutes)</p>
-                    <p className="text-sm text-muted-foreground">Auto-logout after inactivity</p>
-                  </div>
-                  <Input type="number" className="w-20" defaultValue={30} min={5} max={120} />
-                </div>
-              </div>
-              <Button className="mt-6" onClick={() => toast.success('Security settings saved')}>
-                Save Security Settings
-              </Button>
-            </div>
-          </TabsContent>
 
 
           {/* Recycle Bin */}
