@@ -583,7 +583,7 @@ export default function AIEngine() {
                 ) : (
                   <>
                     <Wifi className="h-4 w-4 mr-2" />
-                    Quick Scan (10)
+                    Quick Scan
                   </>
                 )}
               </Button>
@@ -594,7 +594,7 @@ export default function AIEngine() {
                 disabled={scraping}
                 className="rounded-none"
               >
-                Full Scan (20)
+                Full Scan
               </Button>
             </div>
             
