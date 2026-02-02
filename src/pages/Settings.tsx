@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings as SettingsIcon, Users, Bell, Shield, Database, ClipboardList, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Shield, Database, ClipboardList, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate } from 'react-router-dom';
 import { UserManagement } from '@/components/UserManagement';
@@ -42,10 +42,6 @@ export default function Settings() {
             <TabsTrigger value="users" className="gap-2">
               <Users size={16} />
               Users
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-2">
-              <Bell size={16} />
-              Notifications
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-2">
               <Shield size={16} />
@@ -142,38 +138,6 @@ export default function Settings() {
             <UserManagement />
           </TabsContent>
 
-          {/* Notifications */}
-          <TabsContent value="notifications" className="space-y-6">
-            <div className="card-stock-sage animate-fade-in">
-              <h3 className="text-lg font-semibold text-heading mb-4">Email Notifications</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-md border border-border">
-                  <div>
-                    <p className="font-medium">Low Stock Alerts</p>
-                    <p className="text-sm text-muted-foreground">Receive email when stock falls below minimum</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-md border border-border">
-                  <div>
-                    <p className="font-medium">Daily Summary</p>
-                    <p className="text-sm text-muted-foreground">Receive daily inventory and sales summary</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-md border border-border">
-                  <div>
-                    <p className="font-medium">Forecast Updates</p>
-                    <p className="text-sm text-muted-foreground">Get notified when new forecasts are generated</p>
-                  </div>
-                  <Switch />
-                </div>
-              </div>
-              <Button className="mt-6" onClick={() => toast.success('Notification settings saved')}>
-                Save Preferences
-              </Button>
-            </div>
-          </TabsContent>
 
           {/* Security */}
           <TabsContent value="security" className="space-y-6">
